@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "langchain-langgraph-ats"
+version = "0.1.0"
+description = "LLM-powered ATS for IT candidate ranking — Q1 Scopus research"
+authors = ["Your Name <your@email.com>"]
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langgraph = ">=0.2"
+langchain = ">=0.3"
+langchain-ollama = ">=0.2"
+langchain-core = ">=0.3"
+pydantic = ">=2.0"
+pymupdf = ">=1.24"
+pdfplumber = ">=0.11"
+scipy = ">=1.13"
+scikit-learn = ">=1.5"
+numpy = ">=1.26"
+rich = ">=13.0"
+typer = ">=0.12"
+
+[tool.poetry.dev-dependencies]
+pytest = ">=8.0"
+pytest-cov = ">=5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
