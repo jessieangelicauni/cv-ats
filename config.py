@@ -1,17 +1,22 @@
+from __future__ import annotations
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-SMALL_MODEL = "qwen2.5:7b"
-LARGE_MODEL = "llama3.3:70b"
+load_dotenv()
 
-EXTRACTION_TEMPERATURE = 0.0
-JUDGE_TEMPERATURE = 0.1
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+SMALL_MODEL = os.getenv("SMALL_MODEL", "qwen2.5:7b")
+# LARGE_MODEL = os.getenv("LARGE_MODEL", "llama3.3:70b")
 
-MAX_PARALLEL_WORKERS = 4
-HALLUCINATION_SIMILARITY_THRESHOLD = 0.85
-BORDERLINE_SCORE_THRESHOLD = 5.0
-MIN_PROFILE_SKILLS = 3
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EXTRACTION_TEMPERATURE = float(os.getenv("EXTRACTION_TEMPERATURE", "0.0"))
+JUDGE_TEMPERATURE = float(os.getenv("JUDGE_TEMPERATURE", "0.1"))
+
+MAX_PARALLEL_WORKERS = int(os.getenv("MAX_PARALLEL_WORKERS", "4"))
+HALLUCINATION_SIMILARITY_THRESHOLD = float(os.getenv("HALLUCINATION_SIMILARITY_THRESHOLD", "0.85"))
+BORDERLINE_SCORE_THRESHOLD = float(os.getenv("BORDERLINE_SCORE_THRESHOLD", "5.0"))
+MIN_PROFILE_SKILLS = int(os.getenv("MIN_PROFILE_SKILLS", "3"))
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
 BASE_DIR = Path(__file__).parent
 RESULTS_DIR = BASE_DIR / "results"
