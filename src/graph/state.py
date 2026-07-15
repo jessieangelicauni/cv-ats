@@ -16,6 +16,7 @@ class ATSState(TypedDict):
     candidate_assessments: list[CandidateAssessment]
     final_ranking: FinalRanking | None
     run_id: str
+    otel_trace_id: str      # 32-hex OTel trace ID — used for Langfuse scoring
     trace_log: Annotated[list[dict], operator.add]
     hallucination_flags: Annotated[list[HallucinationFlag], operator.add]
     use_cache: bool

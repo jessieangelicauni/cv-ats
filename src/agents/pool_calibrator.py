@@ -1,7 +1,7 @@
 from __future__ import annotations
 from langchain_core.messages import SystemMessage, HumanMessage
 from src.models.schemas import CandidateAssessment, FinalRanking, JDRequirements
-from src.utils.llm import get_llm
+from src.utils.llm import get_llm, invoke_with_telemetry
 from src.prompts import calibrator as prompts
 import config
 
@@ -24,8 +24,8 @@ class PoolCalibratorAgent:
     def run(self, assessments: list[CandidateAssessment], jd: JDRequirements) -> FinalRanking:
         role_summary = f"{jd.role_title} ({jd.seniority_level}), min {jd.min_years_experience}y exp"
         assessments_summary = "\n\n".join(_summarise_assessment(a) for a in assessments)
-
-        return self._llm.invoke([
-            SystemMessage(content=prompts.SYSTEM),
-            HumanMessage(content=prompts.human(role_summary, assessments_summary)),
-        ])
+        return invoke_with_telemetry(
+            self._llm,
+            [SystemMessage(content=prompts.SYSTEM),
+             HumanMessage(content=prompts.human(role_summary, assessments_summary))],
+        )
