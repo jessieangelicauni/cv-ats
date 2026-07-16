@@ -32,7 +32,8 @@ def _make_mock_jd() -> JDRequirements:
 
 
 def test_jd_parser_returns_jd_requirements():
-    mock_llm = MagicMock(return_value=_make_mock_jd())
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = _make_mock_jd()
     with patch("src.agents.jd_parser.get_llm", return_value=mock_llm):
         agent = JDParserAgent()
         result = agent.run(SAMPLE_JD)
@@ -42,7 +43,8 @@ def test_jd_parser_returns_jd_requirements():
 
 
 def test_jd_parser_uses_cache_on_second_call():
-    mock_llm = MagicMock(return_value=_make_mock_jd())
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = _make_mock_jd()
     with patch("src.agents.jd_parser.get_llm", return_value=mock_llm):
         import tempfile
         from pathlib import Path
@@ -52,4 +54,4 @@ def test_jd_parser_uses_cache_on_second_call():
             agent = JDParserAgent(cache=cache)
             agent.run(SAMPLE_JD)
             agent.run(SAMPLE_JD)
-    assert mock_llm.call_count == 1
+    assert mock_llm.invoke.call_count == 1

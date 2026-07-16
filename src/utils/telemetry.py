@@ -1,13 +1,11 @@
 from __future__ import annotations
 import os
 import atexit
-from contextlib import contextmanager
-from typing import Generator
 
 from dotenv import load_dotenv
 from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler
-from opentelemetry import trace, context as otel_context
+from opentelemetry import trace
 
 _initialized: bool = False
 
@@ -60,7 +58,7 @@ def make_callback() -> CallbackHandler:
 
     In Langfuse 4.x this automatically inherits the current OTel span as
     parent — as long as the caller is inside a tracer.start_as_current_span()
-    block (and thread context has been propagated via propagate_otel_context).
+    block.
     """
     return CallbackHandler()
 
@@ -70,30 +68,6 @@ def make_callback() -> CallbackHandler:
 def shutdown() -> None:
     """Flush all buffered spans/events. Call explicitly in CLI finally blocks."""
     get_client().flush()
-
-
-# ── Thread context propagation ────────────────────────────────────────────────
-
-@contextmanager
-def propagate_otel_context(parent_ctx=None) -> Generator[None, None, None]:
-    """
-    Restore a parent OTel span context inside a ThreadPoolExecutor worker.
-
-    Worker threads start with an empty contextvars context. Without this,
-    every child span appears as a root span with no parent in the trace.
-
-    Usage:
-        parent_ctx = otel_context.get_current()
-        def worker(item):
-            with propagate_otel_context(parent_ctx):
-                ...  # spans created here are children of parent_ctx
-    """
-    ctx = parent_ctx if parent_ctx is not None else otel_context.get_current()
-    token = otel_context.attach(ctx)
-    try:
-        yield
-    finally:
-        otel_context.detach(token)
 
 
 # ── Trace ID extraction ───────────────────────────────────────────────────────

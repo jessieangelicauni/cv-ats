@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib
 import uuid
+from typing import Callable
 from langgraph.graph import StateGraph, START, END
 from src.graph.state import ATSState
 from src.graph.nodes import (
@@ -33,10 +34,15 @@ def run_pipeline(
     run_id: str | None = None,
     use_cache: bool = True,
     session_id: str | None = None,
+    on_phase_complete: Callable[[dict], None] | None = None,
 ) -> ATSState:
     """
     session_id: shared across multiple run_pipeline() calls (e.g. consistency
     experiments) so Langfuse groups them as one session for side-by-side comparison.
+
+    on_phase_complete: called with each trace_log entry (e.g. {"phase": 1,
+    "duration_s": 2.1}) as soon as that phase finishes, so callers (e.g. the CLI's
+    progress spinner) can report real progress instead of a static label.
     """
     setup_telemetry()
 
@@ -51,7 +57,8 @@ def run_pipeline(
             "run.n_candidates": len(cv_raws),
             "run.jd_hash": jd_hash,
             "run.session_id": session_id or "",
-            "llm.model": config.SMALL_MODEL,
+            "llm.small_model": config.SMALL_MODEL,
+            "llm.large_model": config.LARGE_MODEL,
         },
     ):
         # Capture the OTel trace_id while we are inside the root span.
@@ -73,4 +80,13 @@ def run_pipeline(
             "hallucination_flags": [],
             "use_cache": use_cache,
         }
-        return graph.invoke(initial_state)
+
+        final_state = initial_state
+        seen_log_len = 0
+        for state in graph.stream(initial_state, stream_mode="values"):
+            final_state = state
+            log = state.get("trace_log", [])
+            if on_phase_complete and len(log) > seen_log_len:
+                on_phase_complete(log[-1])
+                seen_log_len = len(log)
+        return final_state

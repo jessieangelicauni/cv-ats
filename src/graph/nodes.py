@@ -1,7 +1,5 @@
 from __future__ import annotations
 import time
-from concurrent.futures import ThreadPoolExecutor
-from opentelemetry import context as otel_context
 from opentelemetry.trace import StatusCode
 from src.graph.state import ATSState
 from src.models.schemas import CandidateProfile, EnrichedProfile, CandidateAssessment
@@ -11,7 +9,7 @@ from src.agents.signal_enricher import SignalEnricherAgent
 from src.agents.candidate_judge import CandidateJudgeAgent
 from src.agents.pool_calibrator import PoolCalibratorAgent
 from src.utils.cache import ExtractionCache
-from src.utils.telemetry import get_tracer, propagate_otel_context
+from src.utils.telemetry import get_tracer
 import config
 
 _tracer = get_tracer()
@@ -44,26 +42,23 @@ def phase1_jd_parser(state: ATSState) -> dict:
 def phase2_cv_extractor(state: ATSState) -> dict:
     t0 = time.time()
     cache = _get_cache(state)
-    parent_ctx = otel_context.get_current()  # capture before spawning threads
 
     with _tracer.start_as_current_span("phase2/cv_extractor") as span:
         span.set_attribute("phase", 2)
         span.set_attribute("n_candidates", len(state["cv_raws"]))
 
         def process(cv_raw: dict) -> CandidateProfile:
-            with propagate_otel_context(parent_ctx):
-                with _tracer.start_as_current_span(
-                    f"cv/{cv_raw['candidate_id']}"
-                ) as cspan:
-                    try:
-                        return CVExtractorAgent(cache=cache).run(cv_raw)
-                    except Exception as exc:
-                        cspan.record_exception(exc)
-                        cspan.set_status(StatusCode.ERROR, str(exc))
-                        raise
+            with _tracer.start_as_current_span(
+                f"phase2/cv/{cv_raw['candidate_id']}"
+            ) as cspan:
+                try:
+                    return CVExtractorAgent(cache=cache).run(cv_raw)
+                except Exception as exc:
+                    cspan.record_exception(exc)
+                    cspan.set_status(StatusCode.ERROR, str(exc))
+                    raise
 
-        with ThreadPoolExecutor(max_workers=config.MAX_PARALLEL_WORKERS) as ex:
-            profiles = list(ex.map(process, state["cv_raws"]))
+        profiles = [process(cv_raw) for cv_raw in state["cv_raws"]]
 
     return {
         "cv_profiles": profiles,
@@ -75,26 +70,23 @@ def phase2_cv_extractor(state: ATSState) -> dict:
 def phase3_signal_enricher(state: ATSState) -> dict:
     t0 = time.time()
     jd = state["jd_structured"]
-    parent_ctx = otel_context.get_current()
 
     with _tracer.start_as_current_span("phase3/signal_enricher") as span:
         span.set_attribute("phase", 3)
         span.set_attribute("n_candidates", len(state["cv_profiles"]))
 
         def process(profile: CandidateProfile) -> EnrichedProfile:
-            with propagate_otel_context(parent_ctx):
-                with _tracer.start_as_current_span(
-                    f"enrich/{profile.candidate_id}"
-                ) as cspan:
-                    try:
-                        return SignalEnricherAgent().run(profile, jd)
-                    except Exception as exc:
-                        cspan.record_exception(exc)
-                        cspan.set_status(StatusCode.ERROR, str(exc))
-                        raise
+            with _tracer.start_as_current_span(
+                f"phase3/enrich/{profile.candidate_id}"
+            ) as cspan:
+                try:
+                    return SignalEnricherAgent().run(profile, jd)
+                except Exception as exc:
+                    cspan.record_exception(exc)
+                    cspan.set_status(StatusCode.ERROR, str(exc))
+                    raise
 
-        with ThreadPoolExecutor(max_workers=config.MAX_PARALLEL_WORKERS) as ex:
-            enriched = list(ex.map(process, state["cv_profiles"]))
+        enriched = [process(profile) for profile in state["cv_profiles"]]
 
     return {
         "enriched_profiles": enriched,
@@ -105,26 +97,23 @@ def phase3_signal_enricher(state: ATSState) -> dict:
 def phase4_candidate_judge(state: ATSState) -> dict:
     t0 = time.time()
     jd = state["jd_structured"]
-    parent_ctx = otel_context.get_current()
 
     with _tracer.start_as_current_span("phase4/candidate_judge") as span:
         span.set_attribute("phase", 4)
         span.set_attribute("n_candidates", len(state["enriched_profiles"]))
 
         def process(profile: EnrichedProfile) -> CandidateAssessment:
-            with propagate_otel_context(parent_ctx):
-                with _tracer.start_as_current_span(
-                    f"judge/{profile.candidate_id}"
-                ) as cspan:
-                    try:
-                        return CandidateJudgeAgent().run(profile, jd)
-                    except Exception as exc:
-                        cspan.record_exception(exc)
-                        cspan.set_status(StatusCode.ERROR, str(exc))
-                        raise
+            with _tracer.start_as_current_span(
+                f"phase4/judge/{profile.candidate_id}"
+            ) as cspan:
+                try:
+                    return CandidateJudgeAgent().run(profile, jd)
+                except Exception as exc:
+                    cspan.record_exception(exc)
+                    cspan.set_status(StatusCode.ERROR, str(exc))
+                    raise
 
-        with ThreadPoolExecutor(max_workers=config.MAX_PARALLEL_WORKERS) as ex:
-            assessments = list(ex.map(process, state["enriched_profiles"]))
+        assessments = [process(profile) for profile in state["enriched_profiles"]]
 
     return {
         "candidate_assessments": assessments,
@@ -150,3 +139,4 @@ def phase5_pool_calibrator(state: ATSState) -> dict:
         "final_ranking": ranking,
         "trace_log": [{"phase": 5, "duration_s": round(time.time() - t0, 2)}],
     }
+

@@ -18,6 +18,7 @@ class SignalEnricherAgent:
                  profile.model_dump_json(indent=2),
                  jd.model_dump_json(indent=2),
              ))],
+            run_name="signal_enricher",
         )
         return EnrichedProfile(
             **profile.model_dump(),

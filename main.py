@@ -88,10 +88,27 @@ def main(
             )
             return
 
+        phase_labels = {
+            1: "[Phase 1] Parsing job description...",
+            2: "[Phase 2] Extracting CV profiles...",
+            3: "[Phase 3] Enriching candidate signals...",
+            4: "[Phase 4] Judging candidates...",
+            5: "[Phase 5] Calibrating final ranking...",
+        }
+
         with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
             task = progress.add_task("Running pipeline...", total=None)
-            progress.update(task, description="[Phase 1] Parsing job description...")
-            state = run_pipeline(jd_text, cv_raws, run_id=run_id, use_cache=not no_cache)
+            progress.update(task, description=phase_labels[1])
+
+            def on_phase_complete(entry: dict) -> None:
+                next_label = phase_labels.get(entry["phase"] + 1)
+                if next_label:
+                    progress.update(task, description=next_label)
+
+            state = run_pipeline(
+                jd_text, cv_raws, run_id=run_id, use_cache=not no_cache,
+                on_phase_complete=on_phase_complete,
+            )
 
         otel_trace_id = state["otel_trace_id"]
 

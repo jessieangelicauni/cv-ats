@@ -8,7 +8,7 @@ import config
 
 class CandidateJudgeAgent:
     def __init__(self):
-        self._llm = get_llm(config.SMALL_MODEL, CandidateAssessment, config.JUDGE_TEMPERATURE)
+        self._llm = get_llm(config.LARGE_MODEL, CandidateAssessment, config.JUDGE_TEMPERATURE)
 
     def run(self, profile: EnrichedProfile, jd: JDRequirements) -> CandidateAssessment:
         return invoke_with_telemetry(
@@ -18,4 +18,5 @@ class CandidateJudgeAgent:
                  jd.model_dump_json(indent=2),
                  profile.model_dump_json(indent=2),
              ))],
+            run_name="candidate_judge",
         )

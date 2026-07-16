@@ -42,7 +42,8 @@ def _make_ranking() -> FinalRanking:
     )
 
 def test_calibrator_returns_final_ranking():
-    mock_llm = MagicMock(return_value=_make_ranking())
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = _make_ranking()
     with patch("src.agents.pool_calibrator.get_llm", return_value=mock_llm):
         agent = PoolCalibratorAgent()
         result = agent.run(_make_assessments(), _make_jd())
@@ -51,7 +52,8 @@ def test_calibrator_returns_final_ranking():
     assert result.ranked_candidates[0].rank == 1
 
 def test_calibrator_records_delta_from_raw():
-    mock_llm = MagicMock(return_value=_make_ranking())
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = _make_ranking()
     with patch("src.agents.pool_calibrator.get_llm", return_value=mock_llm):
         agent = PoolCalibratorAgent()
         result = agent.run(_make_assessments(), _make_jd())

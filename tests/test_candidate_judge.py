@@ -48,7 +48,8 @@ def _make_assessment() -> CandidateAssessment:
     )
 
 def test_judge_returns_candidate_assessment():
-    mock_llm = MagicMock(return_value=_make_assessment())
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = _make_assessment()
     with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm):
         agent = CandidateJudgeAgent()
         result = agent.run(_make_enriched(), _make_jd())
@@ -57,7 +58,8 @@ def test_judge_returns_candidate_assessment():
     assert result.raw_score == 87.0
 
 def test_judge_evidence_chain_has_items():
-    mock_llm = MagicMock(return_value=_make_assessment())
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = _make_assessment()
     with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm):
         agent = CandidateJudgeAgent()
         result = agent.run(_make_enriched(), _make_jd())

@@ -100,9 +100,15 @@ Every run is traced via OpenTelemetry and exported to [Langfuse](https://langfus
 (`src/utils/telemetry.py`). Configure in `.env`:
 
 - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` — from Langfuse Cloud
-  (`https://cloud.langfuse.com`) or a self-hosted instance.
-- `OTEL_EXPORTER_OTLP_ENDPOINT` — defaults to Langfuse's OTLP endpoint; point it
-  elsewhere (e.g. Jaeger/Tempo) to redirect traces.
+  (`https://cloud.langfuse.com`) or a self-hosted instance. `LANGFUSE_HOST` is the only
+  thing that controls where traces are sent — the Langfuse SDK builds its own OTLP
+  exporter from it (`{LANGFUSE_HOST}/api/public/otel/v1/traces`, authenticated with the
+  public/secret key pair); it does not read the standard `OTEL_EXPORTER_OTLP_ENDPOINT`
+  env var, so setting that has no effect. To send traces elsewhere (e.g. Jaeger/Tempo),
+  point `LANGFUSE_HOST` at a self-hosted Langfuse instance that forwards them, rather
+  than trying to redirect the exporter directly.
+- `OTEL_SERVICE_NAME` / `OTEL_SERVICE_VERSION` — picked up automatically by the
+  OpenTelemetry SDK's resource detection and attached to every trace.
 - `TELEMETRY_ENABLED` — set to `false` to disable tracing entirely (offline runs, CI,
   unit tests).
 

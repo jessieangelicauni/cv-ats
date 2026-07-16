@@ -29,6 +29,7 @@ class JDParserAgent:
             self._llm,
             [SystemMessage(content=prompts.SYSTEM),
              HumanMessage(content=prompts.human(jd_text, jd_hash))],
+            run_name="jd_parser",
         )
         result.raw_jd_hash = jd_hash
 

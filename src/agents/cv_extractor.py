@@ -32,6 +32,7 @@ class CVExtractorAgent:
             self._extract_llm,
             [SystemMessage(content=prompts.SYSTEM_2A),
              HumanMessage(content=prompts.human_2a(cv_text, candidate_id))],
+            run_name="cv_extractor.extract",
         )
 
         raw_mentions = [s.raw_mention for s in profile.skills]
@@ -40,6 +41,7 @@ class CVExtractorAgent:
                 self._norm_llm,
                 [SystemMessage(content=prompts.SYSTEM_2B),
                  HumanMessage(content=prompts.human_2b(raw_mentions))],
+                run_name="cv_extractor.normalize_skills",
             )
             for skill in profile.skills:
                 skill.canonical_skill = norm_map.mappings.get(
