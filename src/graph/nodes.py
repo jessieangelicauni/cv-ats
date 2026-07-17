@@ -75,7 +75,7 @@ def phase3_candidate_judge(
                     if vector_store is not None:
                         context_chunks = vector_store.retrieve(
                             profile.candidate_id, jd_text,
-                            top_k=config.RETRIEVAL_TOP_K,
+                            top_k=5,
                         )
                     if skill_matcher is not None:
                         skill_matches = skill_matcher.match(

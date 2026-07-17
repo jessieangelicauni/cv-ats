@@ -2,7 +2,6 @@ from __future__ import annotations
 from sentence_transformers import util
 from src.models.schemas import CandidateAssessment, HallucinationFlag
 from src.utils.embedder import get_embedder
-import config
 
 
 def _semantic_similarity(quote: str, full_text: str) -> float:
@@ -23,7 +22,7 @@ def verify_evidence_chain(
             status = "acknowledged_gap"
         elif quote in raw_cv_text:
             status = "supported"
-        elif _semantic_similarity(quote, raw_cv_text) > config.HALLUCINATION_SIMILARITY_THRESHOLD:
+        elif _semantic_similarity(quote, raw_cv_text) > 0.85:
             status = "inferred"
         else:
             status = "fabricated"
