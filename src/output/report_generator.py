@@ -5,6 +5,7 @@ from datetime import date
 from src.models.schemas import (
     CandidateAssessment, CandidateProfile, HallucinationFlag,
 )
+from src.graph.state import ATSState
 from src.evaluation.hallucination_checker import hallucination_rate
 
 
@@ -14,10 +15,6 @@ def _profile_for(cid: str, profiles: list[CandidateProfile]) -> CandidateProfile
 
 def _assessment_for(cid: str, assessments: list[CandidateAssessment]) -> CandidateAssessment | None:
     return next((a for a in assessments if a.candidate_id == cid), None)
-
-
-def _raw_cv_for(cid: str, cv_raws: list[dict]) -> str:
-    return next((c["raw_text"] for c in cv_raws if c["candidate_id"] == cid), "")
 
 
 def _render_candidate_block(
@@ -47,7 +44,9 @@ def _render_candidate_block(
         "|---|---|---|---|",
     ]
     for s in profile.skills:
-        lines.append(f"| {s.canonical_skill} | {s.raw_mention} | {s.proficiency} | {s.evidence_quote} |")
+        lines.append(
+            f"| {s.canonical_skill} | {s.raw_mention} | {s.proficiency} | {s.evidence_quote} |"
+        )
 
     lines += ["", "#### Education",
               "| Degree | Field | Institution | Year |",
@@ -59,7 +58,8 @@ def _render_candidate_block(
     for w in profile.work_history:
         lines += [
             f"**{w.role} — {w.company}**",
-            f"Duration: {w.tenure_months or 'N/A'} months | Leadership: {'Yes' if w.has_leadership_indicators else 'No'}",
+            f"Duration: {w.tenure_months or 'N/A'} months"
+            f" | Leadership: {'Yes' if w.has_leadership_indicators else 'No'}",
             f"Technologies: {', '.join(w.technologies)}",
             "Achievements:",
         ]
@@ -68,7 +68,6 @@ def _render_candidate_block(
         lines.append("")
 
     lines += ["#### LLM Judgment"]
-
     candidate_flags = {f.claim: f.status for f in flags if f.candidate_id == rc.candidate_id}
     for item in assessment.evidence_chain:
         h_status = candidate_flags.get(item.assessment, "unknown")
@@ -90,27 +89,27 @@ def _render_candidate_block(
     return "\n".join(lines)
 
 
-def generate_report(state: dict, output_dir: Path) -> None:
+def generate_report(state: ATSState, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "candidates").mkdir(exist_ok=True)
     (output_dir / "evaluation").mkdir(exist_ok=True)
 
-    ranking = state["final_ranking"]
-    jd = state["jd_structured"]
-    profiles = state["cv_profiles"]
-    assessments = state["candidate_assessments"]
-    flags = state["hallucination_flags"]
-    cv_raws = state["cv_raws"]
-    run_id = state["run_id"]
+    ranking = state.final_ranking
+    jd = state.jd_structured
+    profiles = state.cv_profiles
+    assessments = state.candidate_assessments
+    flags = state.hallucination_flags
+    run_id = state.run_id
 
-    # ranking.json
-    (output_dir / "ranking.json").write_text(ranking.model_dump_json(indent=2), encoding="utf-8")
+    (output_dir / "ranking.json").write_text(
+        ranking.model_dump_json(indent=2), encoding="utf-8"
+    )
 
-    # candidates/<id>.json
     for a in assessments:
-        (output_dir / "candidates" / f"{a.candidate_id}.json").write_text(a.model_dump_json(indent=2), encoding="utf-8")
+        (output_dir / "candidates" / f"{a.candidate_id}.json").write_text(
+            a.model_dump_json(indent=2), encoding="utf-8"
+        )
 
-    # hallucination_report.json
     h_rate = hallucination_rate(flags)
     fabricated = [f for f in flags if f.status == "fabricated"]
     h_report = {
@@ -119,11 +118,12 @@ def generate_report(state: dict, output_dir: Path) -> None:
         "fabricated_count": len(fabricated),
         "fabricated_claims": [f.model_dump() for f in fabricated],
     }
-    (output_dir / "evaluation" / "hallucination_report.json").write_text(json.dumps(h_report, indent=2), encoding="utf-8")
+    (output_dir / "evaluation" / "hallucination_report.json").write_text(
+        json.dumps(h_report, indent=2), encoding="utf-8"
+    )
 
-    # report.md
     md_lines = [
-        f"# ATS Evaluation Report",
+        "# ATS Evaluation Report",
         f"Run: {run_id} | JD: {jd.role_title} ({jd.seniority_level})"
         f" | Candidates: {len(assessments)} | Date: {date.today()}",
         "",
@@ -152,9 +152,9 @@ def generate_report(state: dict, output_dir: Path) -> None:
         profile = _profile_for(rc.candidate_id, profiles)
         assessment = _assessment_for(rc.candidate_id, assessments)
         if profile and assessment:
-            md_lines.append(_render_candidate_block(
-                rc.rank, rc, profile, assessment, flags
-            ))
+            md_lines.append(
+                _render_candidate_block(rc.rank, rc, profile, assessment, flags)
+            )
 
     if ranking.borderline_pairs:
         md_lines += ["## Pool Calibration Notes", "", "### Borderline Pairs"]

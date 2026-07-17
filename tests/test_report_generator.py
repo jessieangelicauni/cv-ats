@@ -2,13 +2,15 @@ import json
 import tempfile
 from pathlib import Path
 from src.output.report_generator import generate_report
+from src.graph.state import ATSState
 from src.models.schemas import (
     FinalRanking, RankedCandidate, CandidateAssessment,
     EvidenceItem, CandidateProfile, CandidateBasicInfo,
     JDRequirements, EducationRequirement, HallucinationFlag,
 )
 
-def _make_state() -> dict:
+
+def _make_state() -> ATSState:
     profile = CandidateProfile(
         candidate_id="cv_001",
         basic_info=CandidateBasicInfo(full_name="Ahmad Faris", email="a@b.com",
@@ -38,20 +40,20 @@ def _make_state() -> dict:
         domain_expertise=[], leadership_expected=True,
         soft_skills=[], industry_context="IT", raw_jd_hash="abc",
     )
-    return {
-        "jd_raw": "Senior Backend Engineer job description",
-        "jd_structured": jd,
-        "cv_raws": [{"raw_text": "CV text", "candidate_id": "cv_001", "source_file": "cv_001.pdf"}],
-        "cv_profiles": [profile],
-        "candidate_assessments": [assessment],
-        "final_ranking": ranking,
-        "run_id": "test_run_001",
-        "trace_log": [{"phase": 1, "duration_s": 1.2}],
-        "hallucination_flags": [HallucinationFlag(candidate_id="cv_001",
-                                                   claim="Strong Python.", status="supported",
-                                                   source_quote="Python dev")],
-        "use_cache": False,
-    }
+    return ATSState(
+        jd_raw="Senior Backend Engineer job description",
+        jd_structured=jd,
+        cv_raws=[{"raw_text": "CV text", "candidate_id": "cv_001", "source_file": "cv_001.pdf"}],
+        cv_profiles=[profile],
+        candidate_assessments=[assessment],
+        final_ranking=ranking,
+        run_id="test_run_001",
+        trace_log=[{"phase": 1, "duration_s": 1.2}],
+        hallucination_flags=[HallucinationFlag(candidate_id="cv_001",
+                                               claim="Strong Python.", status="supported",
+                                               source_quote="Python dev")],
+        use_cache=False,
+    )
 
 
 def test_generate_report_creates_expected_files():
