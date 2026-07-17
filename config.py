@@ -16,15 +16,18 @@ BORDERLINE_SCORE_THRESHOLD = float(os.getenv("BORDERLINE_SCORE_THRESHOLD", "5.0"
 MIN_PROFILE_SKILLS = int(os.getenv("MIN_PROFILE_SKILLS", "3"))
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
+SKILL_MATCH_THRESHOLD = float(os.getenv("SKILL_MATCH_THRESHOLD", "0.75"))
+RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
+
 BASE_DIR = Path(__file__).parent
 RESULTS_DIR = BASE_DIR / "results"
-GROUND_TRUTH_DIR = BASE_DIR / "ground_truth"
 JD_DIR = BASE_DIR / "jd"
 CACHE_DB_PATH = BASE_DIR / ".cache" / "extractions.db"
+CHROMA_DB_PATH = BASE_DIR / ".cache" / "chroma"
 
 
 def ensure_dirs() -> None:
-    for _d in [RESULTS_DIR, GROUND_TRUTH_DIR, JD_DIR, CACHE_DB_PATH.parent]:
+    for _d in [RESULTS_DIR, JD_DIR, CACHE_DB_PATH.parent, CHROMA_DB_PATH]:
         _d.mkdir(parents=True, exist_ok=True)
 
 
