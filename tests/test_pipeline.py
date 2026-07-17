@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
-from src.graph.pipeline import build_pipeline, run_pipeline
+from src.graph.pipeline import run_pipeline
 from src.models.schemas import (
-    JDRequirements, SkillRequirement, EducationRequirement,
+    JDRequirements, EducationRequirement,
     CandidateProfile, CandidateBasicInfo,
     CandidateAssessment, EvidenceItem, FinalRanking, RankedCandidate,
 )
@@ -77,7 +77,7 @@ def test_pipeline_produces_final_ranking():
     assert result.final_ranking.ranked_candidates[0].candidate_id == "cv_001"
 
 
-def test_pipeline_trace_log_has_five_entries():
+def test_pipeline_trace_log_has_four_entries():
     with (
         patch("src.graph.nodes.JDParserAgent") as MockJD,
         patch("src.graph.nodes.CVExtractorAgent") as MockCV,
@@ -100,4 +100,4 @@ def test_pipeline_trace_log_has_five_entries():
             use_cache=False,
         )
 
-    assert len(result.trace_log) == 5
+    assert len(result.trace_log) == 4
