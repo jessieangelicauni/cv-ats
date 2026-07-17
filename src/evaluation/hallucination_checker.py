@@ -1,20 +1,12 @@
 from __future__ import annotations
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import util
 from src.models.schemas import CandidateAssessment, HallucinationFlag
+from src.utils.embedder import get_embedder
 import config
-
-_embedder: SentenceTransformer | None = None
-
-
-def _get_embedder() -> SentenceTransformer:
-    global _embedder
-    if _embedder is None:
-        _embedder = SentenceTransformer(config.EMBEDDING_MODEL)
-    return _embedder
 
 
 def _semantic_similarity(quote: str, full_text: str) -> float:
-    embedder = _get_embedder()
+    embedder = get_embedder()
     emb_quote = embedder.encode(quote, convert_to_tensor=True)
     emb_text = embedder.encode(full_text, convert_to_tensor=True)
     return float(util.cos_sim(emb_quote, emb_text))
