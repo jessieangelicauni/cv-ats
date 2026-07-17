@@ -75,6 +75,7 @@ def test_pipeline_produces_final_ranking():
     assert result.final_ranking is not None
     assert len(result.final_ranking.ranked_candidates) == 2
     assert result.final_ranking.ranked_candidates[0].candidate_id == "cv_001"
+    assert isinstance(result.eliminated_candidates, list)
 
 
 def test_pipeline_trace_log_has_four_entries():

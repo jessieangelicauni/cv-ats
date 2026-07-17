@@ -9,8 +9,30 @@ from src.graph.nodes import (
     phase3_candidate_judge, phase4_pool_calibrator,
 )
 from src.utils.cache import ExtractionCache
+from src.utils.embedder import get_embedder
+from src.utils.vector_store import CVVectorStore
+from src.utils.skill_matcher import SkillMatcher
 from src.utils.telemetry import setup_telemetry, get_tracer, current_otel_trace_id
+from src.models.schemas import CandidateProfile, JDRequirements
 import config
+
+
+def _filter_by_required_skills(
+    profiles: list[CandidateProfile],
+    jd: JDRequirements,
+    skill_matcher: SkillMatcher | None,
+) -> tuple[list[CandidateProfile], list[str]]:
+    if skill_matcher is None or not jd.required_skills:
+        return profiles, []
+    passing: list[CandidateProfile] = []
+    eliminated: list[str] = []
+    for profile in profiles:
+        matches = skill_matcher.match(jd.required_skills, profile.skills)
+        if any(m.score >= config.SKILL_MATCH_THRESHOLD for m in matches):
+            passing.append(profile)
+        else:
+            eliminated.append(profile.candidate_id)
+    return passing, eliminated
 
 
 def run_pipeline(
@@ -24,7 +46,9 @@ def run_pipeline(
     setup_telemetry()
     run_id = run_id or str(uuid.uuid4())[:8]
     jd_hash = hashlib.sha256(jd_raw.encode()).hexdigest()[:12]
-    cache = ExtractionCache(config.CACHE_DB_PATH) if use_cache else None
+    cache         = ExtractionCache(config.CACHE_DB_PATH)  if use_cache else None
+    vector_store  = CVVectorStore(config.CHROMA_DB_PATH)   if use_cache else None
+    skill_matcher = SkillMatcher(get_embedder())            if use_cache else None
 
     tracer = get_tracer()
     with tracer.start_as_current_span(
@@ -50,11 +74,15 @@ def run_pipeline(
                 on_phase_complete(entry)
             return result
 
-        jd_structured = _run_phase(1, phase1_jd_parser, jd_raw, cache)
-        cv_profiles   = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
-                                   candidates=len(cv_raws))
-        assessments   = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured)
-        final_ranking = _run_phase(4, phase4_pool_calibrator, assessments, jd_structured)
+        jd_structured           = _run_phase(1, phase1_jd_parser, jd_raw, cache)
+        cv_profiles             = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
+                                             vector_store, candidates=len(cv_raws))
+        cv_profiles, eliminated = _filter_by_required_skills(
+                                      cv_profiles, jd_structured, skill_matcher)
+        assessments             = _run_phase(3, phase3_candidate_judge, cv_profiles,
+                                             jd_structured, vector_store, skill_matcher)
+        final_ranking           = _run_phase(4, phase4_pool_calibrator, assessments,
+                                             jd_structured)
 
         return ATSState(
             jd_raw=jd_raw,
@@ -67,4 +95,5 @@ def run_pipeline(
             otel_trace_id=otel_trace_id,
             trace_log=trace_log,
             use_cache=use_cache,
+            eliminated_candidates=eliminated,
         )

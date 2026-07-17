@@ -161,6 +161,19 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
         for bp in ranking.borderline_pairs:
             md_lines.append(str(bp))
 
+    if state.eliminated_candidates:
+        md_lines += [
+            "", "---", "", "## Filtered Candidates",
+            "",
+            f"{len(state.eliminated_candidates)} candidate(s) eliminated before judging — "
+            "no required skill match found.",
+            "",
+            "| Candidate ID | Reason |",
+            "|---|---|",
+        ]
+        for cid in state.eliminated_candidates:
+            md_lines.append(f"| {cid} | No required skill match found |")
+
     md_lines += [
         "", "---", "", "## Hallucination Summary",
         f"Overall fabrication rate: {h_rate:.1%} ({len(fabricated)} / "

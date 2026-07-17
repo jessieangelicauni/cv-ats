@@ -88,3 +88,58 @@ def test_ranking_json_is_valid():
         generate_report(_make_state(), out_dir)
         data = json.loads((out_dir / "ranking.json").read_text())
         assert data["ranked_candidates"][0]["candidate_id"] == "cv_001"
+
+
+def test_report_md_contains_eliminated_section_when_candidates_filtered():
+    from src.models.schemas import (
+        FinalRanking, RankedCandidate, CandidateAssessment,
+        EvidenceItem, CandidateProfile, CandidateBasicInfo,
+        JDRequirements, EducationRequirement,
+    )
+    profile = CandidateProfile(
+        candidate_id="cv_001",
+        basic_info=CandidateBasicInfo(full_name="Ahmad Faris", email=None,
+                                       phone=None, location=None, linkedin_url=None,
+                                       current_title="Engineer"),
+        skills=[], work_history=[], education=[],
+        certifications=[], languages=[], total_experience_months=60,
+    )
+    assessment = CandidateAssessment(
+        candidate_id="cv_001", raw_score=87.0, confidence="high",
+        evidence_chain=[EvidenceItem(dimension="Technical Skills Fit",
+                                      assessment="Strong.", evidence_quote="Python",
+                                      dimension_score=9.0)],
+        key_strengths=["Python"], key_gaps=[], seniority_alignment="aligned",
+    )
+    ranking = FinalRanking(
+        ranked_candidates=[RankedCandidate(rank=1, candidate_id="cv_001",
+                           calibrated_score=90.0, delta_from_raw=3.0,
+                           comparative_notes="Best.")],
+        pool_summary="One candidate.", calibration_rationale="N/A", borderline_pairs=[],
+    )
+    jd = JDRequirements(
+        role_title="Engineer", seniority_level="senior",
+        required_skills=[], preferred_skills=[], min_years_experience=5,
+        education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
+        domain_expertise=[], leadership_expected=True,
+        soft_skills=[], industry_context="IT", raw_jd_hash="abc",
+    )
+    from src.graph.state import ATSState
+    state = ATSState(
+        jd_raw="Engineer JD",
+        jd_structured=jd,
+        cv_raws=[{"raw_text": "CV", "candidate_id": "cv_001", "source_file": "cv.pdf"}],
+        cv_profiles=[profile],
+        candidate_assessments=[assessment],
+        final_ranking=ranking,
+        run_id="test_run",
+        eliminated_candidates=["cv_002", "cv_003"],
+        use_cache=False,
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        out_dir = Path(tmp)
+        generate_report(state, out_dir)
+        content = (out_dir / "report.md").read_text()
+        assert "Filtered Candidates" in content
+        assert "cv_002" in content
+        assert "cv_003" in content
