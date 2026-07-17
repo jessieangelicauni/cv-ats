@@ -15,7 +15,7 @@ _tracer = get_tracer()
 
 
 def _get_cache(state: ATSState) -> ExtractionCache | None:
-    if not state.get("use_cache", True):
+    if not state.use_cache:
         return None
     return ExtractionCache(config.CACHE_DB_PATH)
 
@@ -27,7 +27,7 @@ def phase1_jd_parser(state: ATSState) -> dict:
         try:
             cache = _get_cache(state)
             span.set_attribute("cache.enabled", cache is not None)
-            result = JDParserAgent(cache=cache).run(state["jd_raw"])
+            result = JDParserAgent(cache=cache).run(state.jd_raw)
         except Exception as exc:
             span.record_exception(exc)
             span.set_status(StatusCode.ERROR, str(exc))
@@ -44,7 +44,7 @@ def phase2_cv_extractor(state: ATSState) -> dict:
 
     with _tracer.start_as_current_span("phase2/cv_extractor") as span:
         span.set_attribute("phase", 2)
-        span.set_attribute("n_candidates", len(state["cv_raws"]))
+        span.set_attribute("n_candidates", len(state.cv_raws))
 
         def process(cv_raw: dict) -> CandidateProfile:
             with _tracer.start_as_current_span(
@@ -57,7 +57,7 @@ def phase2_cv_extractor(state: ATSState) -> dict:
                     cspan.set_status(StatusCode.ERROR, str(exc))
                     raise
 
-        profiles = [process(cv_raw) for cv_raw in state["cv_raws"]]
+        profiles = [process(cv_raw) for cv_raw in state.cv_raws]
 
     return {
         "cv_profiles": profiles,
@@ -71,7 +71,7 @@ def phase3_signal_enricher(state: ATSState) -> dict:
 
     with _tracer.start_as_current_span("phase3/signal_enricher") as span:
         span.set_attribute("phase", 3)
-        span.set_attribute("n_candidates", len(state["cv_profiles"]))
+        span.set_attribute("n_candidates", len(state.cv_profiles))
         span.set_attribute("status", "skipped")
 
     return {
@@ -81,11 +81,11 @@ def phase3_signal_enricher(state: ATSState) -> dict:
 
 def phase4_candidate_judge(state: ATSState) -> dict:
     t0 = time.time()
-    jd = state["jd_structured"]
+    jd = state.jd_structured
 
     with _tracer.start_as_current_span("phase4/candidate_judge") as span:
         span.set_attribute("phase", 4)
-        span.set_attribute("n_candidates", len(state["cv_profiles"]))
+        span.set_attribute("n_candidates", len(state.cv_profiles))
 
         def process(profile: CandidateProfile) -> CandidateAssessment:
             with _tracer.start_as_current_span(
@@ -98,7 +98,7 @@ def phase4_candidate_judge(state: ATSState) -> dict:
                     cspan.set_status(StatusCode.ERROR, str(exc))
                     raise
 
-        assessments = [process(profile) for profile in state["cv_profiles"]]
+        assessments = [process(profile) for profile in state.cv_profiles]
 
     return {
         "candidate_assessments": assessments,
@@ -110,11 +110,11 @@ def phase5_pool_calibrator(state: ATSState) -> dict:
     t0 = time.time()
     with _tracer.start_as_current_span("phase5/pool_calibrator") as span:
         span.set_attribute("phase", 5)
-        span.set_attribute("n_candidates", len(state["candidate_assessments"]))
+        span.set_attribute("n_candidates", len(state.candidate_assessments))
         try:
             ranking = PoolCalibratorAgent().run(
-                state["candidate_assessments"],
-                state["jd_structured"],
+                state.candidate_assessments,
+                state.jd_structured,
             )
         except Exception as exc:
             span.record_exception(exc)

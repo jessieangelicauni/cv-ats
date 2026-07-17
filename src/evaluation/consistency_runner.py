@@ -25,10 +25,10 @@ def run_consistency_experiment(
             use_cache=True,
             session_id=session_id,
         )
-        ranked = state["final_ranking"].ranked_candidates
+        ranked = state.final_ranking.ranked_candidates
         rankings.append([r.candidate_id for r in ranked])
         score_maps.append({r.candidate_id: r.calibrated_score for r in ranked})
-        otel_trace_ids.append(state["otel_trace_id"])
+        otel_trace_ids.append(state.otel_trace_id)
 
     taus = [
         kendall_tau_score(rankings[i], rankings[j])[0]

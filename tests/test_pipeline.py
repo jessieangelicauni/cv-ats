@@ -72,9 +72,9 @@ def test_pipeline_produces_final_ranking():
             use_cache=False,
         )
 
-    assert result["final_ranking"] is not None
-    assert len(result["final_ranking"].ranked_candidates) == 2
-    assert result["final_ranking"].ranked_candidates[0].candidate_id == "cv_001"
+    assert result.final_ranking is not None
+    assert len(result.final_ranking.ranked_candidates) == 2
+    assert result.final_ranking.ranked_candidates[0].candidate_id == "cv_001"
 
 
 def test_pipeline_trace_log_has_five_entries():
@@ -100,4 +100,4 @@ def test_pipeline_trace_log_has_five_entries():
             use_cache=False,
         )
 
-    assert len(result["trace_log"]) == 5
+    assert len(result.trace_log) == 5

@@ -66,26 +66,26 @@ def run_pipeline(
         otel_trace_id = current_otel_trace_id()
 
         graph = build_pipeline()
-        initial_state: ATSState = {
-            "jd_raw": jd_raw,
-            "cv_raws": cv_raws,
-            "jd_structured": None,
-            "cv_profiles": [],
-            "enriched_profiles": [],
-            "candidate_assessments": [],
-            "final_ranking": None,
-            "run_id": run_id,
-            "otel_trace_id": otel_trace_id,
-            "trace_log": [],
-            "hallucination_flags": [],
-            "use_cache": use_cache,
-        }
+        initial_state = ATSState(
+            jd_raw=jd_raw,
+            cv_raws=cv_raws,
+            jd_structured=None,
+            cv_profiles=[],
+            candidate_assessments=[],
+            final_ranking=None,
+            run_id=run_id,
+            otel_trace_id=otel_trace_id,
+            trace_log=[],
+            hallucination_flags=[],
+            use_cache=use_cache,
+        )
 
         final_state = initial_state
         seen_log_len = 0
         for state in graph.stream(initial_state, stream_mode="values"):
-            final_state = state
-            log = state.get("trace_log", [])
+            # LangGraph returns dicts, not ATSState objects, so convert back
+            final_state = ATSState(**state)
+            log = final_state.trace_log
             if on_phase_complete and len(log) > seen_log_len:
                 on_phase_complete(log[-1])
                 seen_log_len = len(log)
