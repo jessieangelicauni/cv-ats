@@ -43,21 +43,6 @@ def phase2_cv_extractor(
                 try:
                     if vector_store is not None:
                         vector_store.index_cv(cv_raw["candidate_id"], cv_raw["raw_text"])
-                        queries = [
-                            "work experience roles achievements",
-                            "technical skills programming languages frameworks",
-                            "education degree certifications",
-                        ]
-                        seen: set[str] = set()
-                        chunks: list[str] = []
-                        for q in queries:
-                            for chunk in vector_store.retrieve(cv_raw["candidate_id"], q):
-                                if chunk not in seen:
-                                    seen.add(chunk)
-                                    chunks.append(chunk)
-                        focused = cv_raw.copy()
-                        focused["raw_text"] = "\n\n".join(chunks) if chunks else cv_raw["raw_text"]
-                        return CVExtractorAgent(cache=cache).run(focused)
                     return CVExtractorAgent(cache=cache).run(cv_raw)
                 except Exception as exc:
                     cspan.record_exception(exc)
