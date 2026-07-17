@@ -18,3 +18,4 @@ class ATSState(BaseModel):
     trace_log: list[dict] = Field(default_factory=list)
     hallucination_flags: list[HallucinationFlag] = Field(default_factory=list)
     use_cache: bool = True
+    eliminated_candidates: list[str] = Field(default_factory=list)
