@@ -15,19 +15,48 @@ Never state a fact not traceable to the profile.
 Return a valid JSON object matching the required schema exactly."""
 
 
-def human(jd_json: str, profile_json: str) -> str:
-    return (
+def human(
+    jd_json: str,
+    profile_json: str,
+    context_chunks: list[str] | None = None,
+    skill_matches: list | None = None,
+) -> str:
+    parts: list[str] = [
         f"Assess the following candidate against the job requirements.\n\n"
         f"JOB REQUIREMENTS:\n{jd_json}\n\n"
         f"CANDIDATE PROFILE:\n{profile_json}\n\n"
-        f"Assess across these dimensions:\n"
-        f"1. Technical Skills Fit\n"
-        f"2. Experience Depth\n"
-        f"3. Career Trajectory\n"
-        f"4. Leadership & Impact\n"
-        f"5. Education & Credentials\n\n"
-        f"For each: write assessment, cite evidence_quote (exact text or "
-        f'"NOT FOUND IN CV"), score 0-10.\n\n'
-        f"Then produce raw_score (0-100) as your HOLISTIC judgment — not a formula. "
-        f"Weigh dimensions contextually based on what this specific role requires."
+    ]
+
+    if context_chunks:
+        separator = "\n--- chunk ---\n"
+        parts.append(
+            "RELEVANT CV EXCERPTS (raw text — use for evidence_quote verification):\n"
+            f"--- chunk ---\n{separator.join(context_chunks)}\n\n"
+        )
+
+    if skill_matches:
+        rows = [
+            "SKILL COVERAGE (pre-computed — use as grounding for Technical Skills Fit):",
+            "| JD Skill | Candidate Match | Score | Required |",
+            "|---|---|---|---|",
+        ]
+        for m in skill_matches:
+            match_str = m.best_match if m.best_match else "(no match)"
+            req_str = "Yes" if m.is_required else "No"
+            rows.append(f"| {m.jd_skill} | {match_str} | {m.score:.2f} | {req_str} |")
+        parts.append("\n".join(rows) + "\n\n")
+
+    parts.append(
+        "Assess across these dimensions:\n"
+        "1. Technical Skills Fit\n"
+        "2. Experience Depth\n"
+        "3. Career Trajectory\n"
+        "4. Leadership & Impact\n"
+        "5. Education & Credentials\n\n"
+        "For each: write assessment, cite evidence_quote (exact text or "
+        '"NOT FOUND IN CV"), score 0-10.\n\n'
+        "Then produce raw_score (0-100) as your HOLISTIC judgment — not a formula. "
+        "Weigh dimensions contextually based on what this specific role requires."
     )
+
+    return "".join(parts)

@@ -4,6 +4,7 @@ from src.models.schemas import (
     CandidateAssessment, EvidenceItem, CandidateProfile,
     CandidateBasicInfo, JDRequirements, EducationRequirement,
 )
+from src.utils.skill_matcher import SkillMatchResult
 
 
 def _make_profile() -> CandidateProfile:
@@ -66,3 +67,41 @@ def test_judge_evidence_chain_has_items():
         result = agent.run(_make_profile(), _make_jd())
     assert len(result.evidence_chain) > 0
     assert result.evidence_chain[0].evidence_quote != ""
+
+
+def test_judge_prompt_includes_skill_table_when_matches_provided():
+    from src.prompts import judge as prompts
+    skill_matches = [
+        SkillMatchResult(jd_skill="PostgreSQL", best_match="Postgres", score=0.97, is_required=True),
+        SkillMatchResult(jd_skill="Kubernetes", best_match="K8s", score=0.94, is_required=True),
+    ]
+    result = prompts.human(
+        jd_json='{"role": "Engineer"}',
+        profile_json='{"name": "Ahmad"}',
+        skill_matches=skill_matches,
+    )
+    assert "SKILL COVERAGE" in result
+    assert "PostgreSQL" in result
+    assert "Postgres" in result
+
+
+def test_judge_prompt_includes_cv_excerpts_when_chunks_provided():
+    from src.prompts import judge as prompts
+    result = prompts.human(
+        jd_json='{"role": "Engineer"}',
+        profile_json='{"name": "Ahmad"}',
+        context_chunks=["Led backend team of 5 engineers", "Python and Go stack"],
+    )
+    assert "RELEVANT CV EXCERPTS" in result
+    assert "Led backend team" in result
+
+
+def test_judge_prompt_unchanged_when_no_optional_params():
+    from src.prompts import judge as prompts
+    result = prompts.human(
+        jd_json='{"role": "Engineer"}',
+        profile_json='{"name": "Ahmad"}',
+    )
+    assert "SKILL COVERAGE" not in result
+    assert "RELEVANT CV EXCERPTS" not in result
+    assert "Assess across these dimensions" in result
