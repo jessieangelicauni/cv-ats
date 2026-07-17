@@ -1,26 +1,18 @@
 from __future__ import annotations
 from langchain_core.messages import SystemMessage, HumanMessage
-from src.models.schemas import CandidateProfile, EnrichedProfile, EnrichmentSignals, JDRequirements
+from src.models.schemas import CandidateProfile, JDRequirements
 from src.utils.llm import get_llm, invoke_with_telemetry
 from src.prompts import signal_enricher as prompts
 import config
 
 
 class SignalEnricherAgent:
+    """
+    DEPRECATED: Signal enricher phase has been removed from the pipeline.
+    CandidateJudgeAgent now directly consumes CandidateProfile instead of EnrichedProfile.
+    """
     def __init__(self):
-        self._llm = get_llm(config.SMALL_MODEL, EnrichmentSignals, config.EXTRACTION_TEMPERATURE)
+        raise NotImplementedError("SignalEnricherAgent has been removed from the pipeline.")
 
-    def run(self, profile: CandidateProfile, jd: JDRequirements) -> EnrichedProfile:
-        signals: EnrichmentSignals = invoke_with_telemetry(
-            self._llm,
-            [SystemMessage(content=prompts.SYSTEM),
-             HumanMessage(content=prompts.human(
-                 profile.model_dump_json(indent=2),
-                 jd.model_dump_json(indent=2),
-             ))],
-            run_name="signal_enricher",
-        )
-        return EnrichedProfile(
-            **profile.model_dump(),
-            **signals.model_dump(),
-        )
+    def run(self, profile: CandidateProfile, jd: JDRequirements) -> CandidateProfile:
+        raise NotImplementedError("SignalEnricherAgent has been removed from the pipeline.")

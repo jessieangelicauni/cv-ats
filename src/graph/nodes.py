@@ -2,10 +2,9 @@ from __future__ import annotations
 import time
 from opentelemetry.trace import StatusCode
 from src.graph.state import ATSState
-from src.models.schemas import CandidateProfile, EnrichedProfile, CandidateAssessment
+from src.models.schemas import CandidateProfile, CandidateAssessment
 from src.agents.jd_parser import JDParserAgent
 from src.agents.cv_extractor import CVExtractorAgent
-from src.agents.signal_enricher import SignalEnricherAgent
 from src.agents.candidate_judge import CandidateJudgeAgent
 from src.agents.pool_calibrator import PoolCalibratorAgent
 from src.utils.cache import ExtractionCache
@@ -69,28 +68,14 @@ def phase2_cv_extractor(state: ATSState) -> dict:
 
 def phase3_signal_enricher(state: ATSState) -> dict:
     t0 = time.time()
-    jd = state["jd_structured"]
 
     with _tracer.start_as_current_span("phase3/signal_enricher") as span:
         span.set_attribute("phase", 3)
         span.set_attribute("n_candidates", len(state["cv_profiles"]))
-
-        def process(profile: CandidateProfile) -> EnrichedProfile:
-            with _tracer.start_as_current_span(
-                f"phase3/enrich/{profile.candidate_id}"
-            ) as cspan:
-                try:
-                    return SignalEnricherAgent().run(profile, jd)
-                except Exception as exc:
-                    cspan.record_exception(exc)
-                    cspan.set_status(StatusCode.ERROR, str(exc))
-                    raise
-
-        enriched = [process(profile) for profile in state["cv_profiles"]]
+        span.set_attribute("status", "skipped")
 
     return {
-        "enriched_profiles": enriched,
-        "trace_log": [{"phase": 3, "duration_s": round(time.time() - t0, 2)}],
+        "trace_log": [{"phase": 3, "status": "skipped", "duration_s": round(time.time() - t0, 2)}],
     }
 
 
@@ -100,9 +85,9 @@ def phase4_candidate_judge(state: ATSState) -> dict:
 
     with _tracer.start_as_current_span("phase4/candidate_judge") as span:
         span.set_attribute("phase", 4)
-        span.set_attribute("n_candidates", len(state["enriched_profiles"]))
+        span.set_attribute("n_candidates", len(state["cv_profiles"]))
 
-        def process(profile: EnrichedProfile) -> CandidateAssessment:
+        def process(profile: CandidateProfile) -> CandidateAssessment:
             with _tracer.start_as_current_span(
                 f"phase4/judge/{profile.candidate_id}"
             ) as cspan:
@@ -113,7 +98,7 @@ def phase4_candidate_judge(state: ATSState) -> dict:
                     cspan.set_status(StatusCode.ERROR, str(exc))
                     raise
 
-        assessments = [process(profile) for profile in state["enriched_profiles"]]
+        assessments = [process(profile) for profile in state["cv_profiles"]]
 
     return {
         "candidate_assessments": assessments,

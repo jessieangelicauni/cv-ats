@@ -3,17 +3,13 @@ import json
 from pathlib import Path
 from datetime import date
 from src.models.schemas import (
-    CandidateAssessment, EnrichedProfile, CandidateProfile, HallucinationFlag,
+    CandidateAssessment, CandidateProfile, HallucinationFlag,
 )
 from src.evaluation.hallucination_checker import hallucination_rate
 
 
 def _profile_for(cid: str, profiles: list[CandidateProfile]) -> CandidateProfile | None:
     return next((p for p in profiles if p.candidate_id == cid), None)
-
-
-def _enriched_for(cid: str, enriched: list[EnrichedProfile]) -> EnrichedProfile | None:
-    return next((e for e in enriched if e.candidate_id == cid), None)
 
 
 def _assessment_for(cid: str, assessments: list[CandidateAssessment]) -> CandidateAssessment | None:
@@ -28,7 +24,6 @@ def _render_candidate_block(
     rank: int,
     rc,
     profile: CandidateProfile,
-    enriched: EnrichedProfile,
     assessment: CandidateAssessment,
     flags: list[HallucinationFlag],
 ) -> str:
@@ -62,9 +57,8 @@ def _render_candidate_block(
 
     lines += ["", "#### Work Experience"]
     for w in profile.work_history:
-        tier = enriched.company_tiers[profile.work_history.index(w)] if enriched.company_tiers else "N/A"
         lines += [
-            f"**{w.role} — {w.company} ({tier})**",
+            f"**{w.role} — {w.company}**",
             f"Duration: {w.tenure_months or 'N/A'} months | Leadership: {'Yes' if w.has_leadership_indicators else 'No'}",
             f"Technologies: {', '.join(w.technologies)}",
             "Achievements:",
@@ -73,15 +67,7 @@ def _render_candidate_block(
             lines.append(f'- "{ach}"')
         lines.append("")
 
-    lines += ["#### Signal Summary",
-              f"- Career trajectory: {enriched.career_trajectory}",
-              f"- Highest prestige company: {enriched.highest_prestige_company}",
-              f"- Company tiers: {', '.join(enriched.company_tiers)}",
-              f"- Leadership indicators: {enriched.leadership_count}",
-              f"- Measurable impact statements: {enriched.measurable_impact_count}",
-              f"- Tenure stability: {enriched.tenure_stability}",
-              f"- Relevant experience: {enriched.relevant_experience_months} months",
-              "", "#### LLM Judgment"]
+    lines += ["#### LLM Judgment"]
 
     candidate_flags = {f.claim: f.status for f in flags if f.candidate_id == rc.candidate_id}
     for item in assessment.evidence_chain:
@@ -112,7 +98,6 @@ def generate_report(state: dict, output_dir: Path) -> None:
     ranking = state["final_ranking"]
     jd = state["jd_structured"]
     profiles = state["cv_profiles"]
-    enriched_list = state["enriched_profiles"]
     assessments = state["candidate_assessments"]
     flags = state["hallucination_flags"]
     cv_raws = state["cv_raws"]
@@ -165,11 +150,10 @@ def generate_report(state: dict, output_dir: Path) -> None:
 
     for rc in ranking.ranked_candidates:
         profile = _profile_for(rc.candidate_id, profiles)
-        enriched = _enriched_for(rc.candidate_id, enriched_list)
         assessment = _assessment_for(rc.candidate_id, assessments)
-        if profile and enriched and assessment:
+        if profile and assessment:
             md_lines.append(_render_candidate_block(
-                rc.rank, rc, profile, enriched, assessment, flags
+                rc.rank, rc, profile, assessment, flags
             ))
 
     if ranking.borderline_pairs:

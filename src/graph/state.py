@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TypedDict, Annotated
 import operator
 from src.models.schemas import (
-    JDRequirements, CandidateProfile, EnrichedProfile,
+    JDRequirements, CandidateProfile,
     CandidateAssessment, FinalRanking, HallucinationFlag,
 )
 
@@ -12,7 +12,6 @@ class ATSState(TypedDict):
     cv_raws: list[dict]
     jd_structured: JDRequirements | None
     cv_profiles: list[CandidateProfile]
-    enriched_profiles: list[EnrichedProfile]
     candidate_assessments: list[CandidateAssessment]
     final_ranking: FinalRanking | None
     run_id: str

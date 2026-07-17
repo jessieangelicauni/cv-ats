@@ -2,9 +2,8 @@ from unittest.mock import MagicMock, patch
 from src.graph.pipeline import build_pipeline, run_pipeline
 from src.models.schemas import (
     JDRequirements, SkillRequirement, EducationRequirement,
-    CandidateProfile, CandidateBasicInfo, EnrichedProfile,
+    CandidateProfile, CandidateBasicInfo,
     CandidateAssessment, EvidenceItem, FinalRanking, RankedCandidate,
-    EnrichmentSignals,
 )
 
 
@@ -25,20 +24,6 @@ def _mock_profile(cid: str) -> CandidateProfile:
                                        location=None, linkedin_url=None, current_title=None),
         skills=[], work_history=[], education=[],
         certifications=[], languages=[], total_experience_months=36,
-    )
-
-
-def _mock_enriched(cid: str) -> EnrichedProfile:
-    return EnrichedProfile(
-        candidate_id=cid,
-        basic_info=CandidateBasicInfo(full_name=None, email=None, phone=None,
-                                       location=None, linkedin_url=None, current_title=None),
-        skills=[], work_history=[], education=[],
-        certifications=[], languages=[], total_experience_months=36,
-        company_tiers=["tier2_established"], highest_prestige_company="N/A",
-        career_trajectory="lateral", leadership_count=0,
-        measurable_impact_count=0, tenure_stability="stable",
-        relevant_experience_months=36,
     )
 
 
@@ -70,13 +55,11 @@ def test_pipeline_produces_final_ranking():
     with (
         patch("src.graph.nodes.JDParserAgent") as MockJD,
         patch("src.graph.nodes.CVExtractorAgent") as MockCV,
-        patch("src.graph.nodes.SignalEnricherAgent") as MockSE,
         patch("src.graph.nodes.CandidateJudgeAgent") as MockJ,
         patch("src.graph.nodes.PoolCalibratorAgent") as MockPC,
     ):
         MockJD.return_value.run.return_value = _mock_jd()
         MockCV.return_value.run.side_effect = [_mock_profile("cv_001"), _mock_profile("cv_002")]
-        MockSE.return_value.run.side_effect = [_mock_enriched("cv_001"), _mock_enriched("cv_002")]
         MockJ.return_value.run.side_effect = [_mock_assessment("cv_001"), _mock_assessment("cv_002")]
         MockPC.return_value.run.return_value = _mock_ranking()
 
@@ -98,13 +81,11 @@ def test_pipeline_trace_log_has_five_entries():
     with (
         patch("src.graph.nodes.JDParserAgent") as MockJD,
         patch("src.graph.nodes.CVExtractorAgent") as MockCV,
-        patch("src.graph.nodes.SignalEnricherAgent") as MockSE,
         patch("src.graph.nodes.CandidateJudgeAgent") as MockJ,
         patch("src.graph.nodes.PoolCalibratorAgent") as MockPC,
     ):
         MockJD.return_value.run.return_value = _mock_jd()
         MockCV.return_value.run.side_effect = [_mock_profile("cv_001")]
-        MockSE.return_value.run.side_effect = [_mock_enriched("cv_001")]
         MockJ.return_value.run.side_effect = [_mock_assessment("cv_001")]
         MockPC.return_value.run.return_value = FinalRanking(
             ranked_candidates=[RankedCandidate(rank=1, candidate_id="cv_001",

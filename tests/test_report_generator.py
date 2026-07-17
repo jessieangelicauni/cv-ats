@@ -4,7 +4,7 @@ from pathlib import Path
 from src.output.report_generator import generate_report
 from src.models.schemas import (
     FinalRanking, RankedCandidate, CandidateAssessment,
-    EvidenceItem, CandidateProfile, CandidateBasicInfo, EnrichedProfile,
+    EvidenceItem, CandidateProfile, CandidateBasicInfo,
     JDRequirements, EducationRequirement, HallucinationFlag,
 )
 
@@ -16,13 +16,6 @@ def _make_state() -> dict:
                                        current_title="Engineer"),
         skills=[], work_history=[], education=[],
         certifications=[], languages=[], total_experience_months=60,
-    )
-    enriched = EnrichedProfile(
-        **profile.model_dump(),
-        company_tiers=["tier1_mnc"], highest_prestige_company="Google",
-        career_trajectory="ascending", leadership_count=2,
-        measurable_impact_count=3, tenure_stability="stable",
-        relevant_experience_months=60,
     )
     assessment = CandidateAssessment(
         candidate_id="cv_001", raw_score=87.0, confidence="high",
@@ -50,7 +43,6 @@ def _make_state() -> dict:
         "jd_structured": jd,
         "cv_raws": [{"raw_text": "CV text", "candidate_id": "cv_001", "source_file": "cv_001.pdf"}],
         "cv_profiles": [profile],
-        "enriched_profiles": [enriched],
         "candidate_assessments": [assessment],
         "final_ranking": ranking,
         "run_id": "test_run_001",

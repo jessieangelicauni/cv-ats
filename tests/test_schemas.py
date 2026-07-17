@@ -2,7 +2,6 @@ from src.models.schemas import (
     JDRequirements, SkillRequirement, EducationRequirement,
     CandidateProfile, CandidateBasicInfo, SkillEntry, SkillNormalizationMap,
     WorkEntry, EducationEntry, LanguageEntry,
-    EnrichedProfile, EnrichmentSignals,
     CandidateAssessment, EvidenceItem, HallucinationFlag,
     FinalRanking, RankedCandidate,
 )
@@ -13,7 +12,7 @@ def test_jd_requirements_rejects_invalid_seniority():
     with pytest.raises(Exception):
         JDRequirements(
             role_title="Dev",
-            seniority_level="wizard",  # invalid
+            seniority_level="wizard",
             required_skills=[], preferred_skills=[],
             min_years_experience=3,
             education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
@@ -62,16 +61,3 @@ def test_final_ranking_ranked_candidates():
         borderline_pairs=[],
     )
     assert fr.ranked_candidates[0].rank == 1
-
-
-def test_enrichment_signals_career_trajectory():
-    signals = EnrichmentSignals(
-        company_tiers=["tier1_mnc"],
-        highest_prestige_company="Google",
-        career_trajectory="ascending",
-        leadership_count=3,
-        measurable_impact_count=4,
-        tenure_stability="stable",
-        relevant_experience_months=60,
-    )
-    assert signals.career_trajectory == "ascending"

@@ -2,10 +2,6 @@ from __future__ import annotations
 from typing import Literal, TypeAlias
 from pydantic import BaseModel, Field, ConfigDict
 
-# Shared type aliases — used in both EnrichmentSignals and EnrichedProfile
-CompanyTier: TypeAlias = Literal["tier1_mnc", "tier2_established", "tier3_startup"]
-CareerTrajectory: TypeAlias = Literal["ascending", "lateral", "stagnant", "descending"]
-TenureStability: TypeAlias = Literal["stable", "moderate", "job_hopper"]
 Proficiency: TypeAlias = Literal["beginner", "intermediate", "advanced", "expert"]
 
 
@@ -85,34 +81,6 @@ class CandidateProfile(BaseModel):
     certifications: list[str]
     languages: list[LanguageEntry]
     total_experience_months: int
-
-
-class EnrichmentSignals(BaseModel):
-    company_tiers: list[CompanyTier]
-    highest_prestige_company: str
-    career_trajectory: CareerTrajectory
-    leadership_count: int
-    measurable_impact_count: int
-    tenure_stability: TenureStability
-    relevant_experience_months: int
-
-
-class EnrichedProfile(BaseModel):
-    candidate_id: str
-    basic_info: CandidateBasicInfo
-    skills: list[SkillEntry]
-    work_history: list[WorkEntry]
-    education: list[EducationEntry]
-    certifications: list[str]
-    languages: list[LanguageEntry]
-    total_experience_months: int
-    company_tiers: list[CompanyTier]
-    highest_prestige_company: str
-    career_trajectory: CareerTrajectory
-    leadership_count: int
-    measurable_impact_count: int
-    tenure_stability: TenureStability
-    relevant_experience_months: int
 
 
 class EvidenceItem(BaseModel):
