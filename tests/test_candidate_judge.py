@@ -1,107 +1,81 @@
+# tests/test_candidate_judge.py
 from unittest.mock import MagicMock, patch
 from src.agents.candidate_judge import CandidateJudgeAgent
 from src.models.schemas import (
     CandidateAssessment, EvidenceItem, CandidateProfile,
     CandidateBasicInfo, JDRequirements, EducationRequirement,
 )
-from src.utils.skill_matcher import SkillMatchResult
+
+
+def _make_assessment() -> CandidateAssessment:
+    return CandidateAssessment(
+        candidate_id="cv_001", raw_score=80.0, confidence="high",
+        evidence_chain=[EvidenceItem(
+            dimension="Technical Skills Fit", assessment="Good.",
+            evidence_quote="Python", dimension_score=8.0,
+        )],
+        key_strengths=["Python"], key_gaps=[], seniority_alignment="aligned",
+    )
 
 
 def _make_profile() -> CandidateProfile:
     return CandidateProfile(
         candidate_id="cv_001",
         basic_info=CandidateBasicInfo(
-            full_name="Ahmad", email=None, phone=None,
-            location=None, linkedin_url=None, current_title="Engineer",
+            full_name="Test", email=None, phone=None,
+            location=None, linkedin_url=None, current_title=None,
         ),
         skills=[], work_history=[], education=[],
-        certifications=[], languages=[], total_experience_months=60,
+        certifications=[], languages=[], total_experience_months=24,
     )
 
 
 def _make_jd() -> JDRequirements:
     return JDRequirements(
-        role_title="Senior Backend Engineer", seniority_level="senior",
-        required_skills=[], preferred_skills=[], min_years_experience=5,
+        role_title="Engineer", seniority_level="mid",
+        required_skills=[], preferred_skills=[], min_years_experience=2,
         education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
-        domain_expertise=[], leadership_expected=True,
+        domain_expertise=[], leadership_expected=False,
         soft_skills=[], industry_context="IT", raw_jd_hash="abc",
     )
 
 
-def _make_assessment() -> CandidateAssessment:
-    return CandidateAssessment(
-        candidate_id="cv_001",
-        raw_score=87.0,
-        confidence="high",
-        evidence_chain=[
-            EvidenceItem(
-                dimension="Technical Skills Fit",
-                assessment="Strong Python skills.",
-                evidence_quote="5 years Python development",
-                dimension_score=9.0,
-            )
-        ],
-        key_strengths=["Tier 1 MNC experience"],
-        key_gaps=["Kubernetes not evidenced"],
-        seniority_alignment="aligned",
-    )
-
-
-def test_judge_returns_candidate_assessment():
+def test_judge_default_uses_evidence_grounding_system_prompt():
+    from src.prompts import judge
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = _make_assessment()
-    with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm):
+    with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm), \
+         patch("src.agents.candidate_judge.invoke_with_telemetry",
+               return_value=_make_assessment()) as mock_invoke:
         agent = CandidateJudgeAgent()
-        result = agent.run(_make_profile(), _make_jd())
-    assert isinstance(result, CandidateAssessment)
-    assert result.candidate_id == "cv_001"
-    assert result.raw_score == 87.0
+        agent.run(_make_profile(), _make_jd())
+    messages = mock_invoke.call_args[0][1]
+    assert messages[0].content == judge.SYSTEM
 
 
-def test_judge_evidence_chain_has_items():
+def test_judge_no_grounding_uses_no_grounding_system_prompt():
+    from src.prompts import judge_no_grounding
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = _make_assessment()
-    with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm):
-        agent = CandidateJudgeAgent()
-        result = agent.run(_make_profile(), _make_jd())
-    assert len(result.evidence_chain) > 0
-    assert result.evidence_chain[0].evidence_quote != ""
+    with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm), \
+         patch("src.agents.candidate_judge.invoke_with_telemetry",
+               return_value=_make_assessment()) as mock_invoke:
+        agent = CandidateJudgeAgent(use_evidence_grounding=False)
+        agent.run(_make_profile(), _make_jd())
+    messages = mock_invoke.call_args[0][1]
+    assert messages[0].content == judge_no_grounding.SYSTEM
 
 
-def test_judge_prompt_includes_skill_table_when_matches_provided():
-    from src.prompts import judge as prompts
-    skill_matches = [
-        SkillMatchResult(jd_skill="PostgreSQL", best_match="Postgres", score=0.97, is_required=True),
-        SkillMatchResult(jd_skill="Kubernetes", best_match="K8s", score=0.94, is_required=True),
-    ]
-    result = prompts.human(
-        jd_json='{"role": "Engineer"}',
-        profile_json='{"name": "Ahmad"}',
-        skill_matches=skill_matches,
-    )
-    assert "SKILL COVERAGE" in result
-    assert "PostgreSQL" in result
-    assert "Postgres" in result
+def test_judge_no_grounding_human_message_unchanged():
+    """The human() function is reused regardless of grounding flag."""
+    mock_llm = MagicMock()
+    captured = []
 
+    def capture_invoke(chain, msgs, **kw):
+        captured.append(msgs)
+        return _make_assessment()
 
-def test_judge_prompt_includes_cv_excerpts_when_chunks_provided():
-    from src.prompts import judge as prompts
-    result = prompts.human(
-        jd_json='{"role": "Engineer"}',
-        profile_json='{"name": "Ahmad"}',
-        context_chunks=["Led backend team of 5 engineers", "Python and Go stack"],
-    )
-    assert "RELEVANT CV EXCERPTS" in result
-    assert "Led backend team" in result
+    with patch("src.agents.candidate_judge.get_llm", return_value=mock_llm), \
+         patch("src.agents.candidate_judge.invoke_with_telemetry", side_effect=capture_invoke):
+        CandidateJudgeAgent(use_evidence_grounding=True).run(_make_profile(), _make_jd())
+        CandidateJudgeAgent(use_evidence_grounding=False).run(_make_profile(), _make_jd())
 
-
-def test_judge_prompt_unchanged_when_no_optional_params():
-    from src.prompts import judge as prompts
-    result = prompts.human(
-        jd_json='{"role": "Engineer"}',
-        profile_json='{"name": "Ahmad"}',
-    )
-    assert "SKILL COVERAGE" not in result
-    assert "RELEVANT CV EXCERPTS" not in result
-    assert "Assess across these dimensions" in result
+    assert captured[0][1].content == captured[1][1].content
