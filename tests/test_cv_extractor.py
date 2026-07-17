@@ -63,15 +63,16 @@ def test_cv_extractor_returns_candidate_profile():
     assert result.basic_info.full_name == "Ahmad Faris Bin Razak"
 
 
-def test_cv_extractor_applies_taxonomy_canonicalization():
-    """Taxonomy normalizes 'postgres' -> 'postgresql'."""
+def test_cv_extractor_applies_llm_canonicalization():
+    """LLM normalizer maps 'postgres' -> 'PostgreSQL'."""
     mock_extract_llm = MagicMock(return_value=_make_mock_profile())
 
     with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm), \
-         patch("src.agents.cv_extractor.invoke_with_telemetry", return_value=_make_mock_profile()):
+         patch("src.agents.cv_extractor.invoke_with_telemetry", return_value=_make_mock_profile()), \
+         patch("src.agents.cv_extractor.normalize_skills", return_value={"postgres": "PostgreSQL", "Python": "Python", "Docker": "Docker"}):
         agent = CVExtractorAgent()
         result = agent.run({"raw_text": SAMPLE_CV, "candidate_id": "cv_001", "source_file": "cv_001.pdf"})
 
     postgres_skill = next(s for s in result.skills if s.raw_mention == "postgres")
-    assert postgres_skill.canonical_skill == "postgresql"
+    assert postgres_skill.canonical_skill == "PostgreSQL"
     assert postgres_skill.raw_mention == "postgres"

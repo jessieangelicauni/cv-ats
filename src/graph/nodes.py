@@ -10,7 +10,6 @@ from src.agents.candidate_judge import CandidateJudgeAgent
 from src.agents.pool_calibrator import PoolCalibratorAgent
 from src.utils.cache import ExtractionCache
 from src.utils.vector_store import CVVectorStore
-from src.utils.skill_taxonomy import normalize
 from src.utils.telemetry import get_tracer
 
 _tracer = get_tracer()
@@ -75,12 +74,12 @@ def phase3_candidate_judge(
                             profile.candidate_id, jd_text,
                             top_k=10,
                         )
-                    candidate_ids = {normalize(s.canonical_skill) for s in profile.skills}
+                    candidate_names = {s.canonical_skill for s in profile.skills}
                     skill_matches = [
                         SkillMatchResult(
                             jd_skill=s.skill,
-                            best_match=normalize(s.skill) if normalize(s.skill) in candidate_ids else None,
-                            score=1.0 if normalize(s.skill) in candidate_ids else 0.0,
+                            best_match=s.skill if s.skill in candidate_names else None,
+                            score=1.0 if s.skill in candidate_names else 0.0,
                             is_required=s.is_mandatory,
                         )
                         for s in jd.required_skills + jd.preferred_skills

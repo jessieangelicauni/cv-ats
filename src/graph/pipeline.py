@@ -10,7 +10,7 @@ from src.graph.nodes import (
 )
 from src.utils.cache import ExtractionCache
 from src.utils.vector_store import CVVectorStore
-from src.utils.skill_taxonomy import normalize
+from src.utils.skill_normalizer import normalize_skills
 from src.utils.telemetry import setup_telemetry, get_tracer, current_otel_trace_id
 from src.models.schemas import (
     CandidateProfile, CandidateAssessment, JDRequirements,
@@ -25,12 +25,12 @@ def _filter_by_required_skills(
 ) -> tuple[list[CandidateProfile], list[str]]:
     if not jd.required_skills:
         return profiles, []
-    required_ids = {normalize(s.skill) for s in jd.required_skills}
+    required_names = {s.skill for s in jd.required_skills}
     passing: list[CandidateProfile] = []
     eliminated: list[str] = []
     for profile in profiles:
-        candidate_ids = {normalize(s.canonical_skill) for s in profile.skills}
-        if required_ids & candidate_ids:
+        candidate_names = {s.canonical_skill for s in profile.skills}
+        if required_names & candidate_names:
             passing.append(profile)
         else:
             eliminated.append(profile.candidate_id)
@@ -101,6 +101,17 @@ def run_pipeline(
             return result
 
         jd_structured = _run_phase(1, phase1_jd_parser, jd_raw, cache)
+
+        # Normalize JD skill names through same LLM prompt as CV Phase 2B
+        # so both sides are canonical and exact-match comparison works
+        jd_skill_names = [s.skill for s in jd_structured.required_skills + jd_structured.preferred_skills]
+        if jd_skill_names:
+            jd_norm_map = normalize_skills(jd_skill_names)
+            for s in jd_structured.required_skills:
+                s.skill = jd_norm_map.get(s.skill, s.skill)
+            for s in jd_structured.preferred_skills:
+                s.skill = jd_norm_map.get(s.skill, s.skill)
+
         cv_profiles   = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
                                    rag_store, candidates=len(cv_raws))
 

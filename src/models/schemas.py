@@ -11,6 +11,10 @@ class SkillMatchResult:
     score: float
     is_required: bool
 
+
+class SkillNormalizationMap(BaseModel):
+    mappings: dict[str, str]
+
 Proficiency: TypeAlias = Literal["beginner", "intermediate", "advanced", "expert"]
 
 
