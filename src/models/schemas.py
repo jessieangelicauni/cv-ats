@@ -1,6 +1,15 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Literal, TypeAlias
 from pydantic import BaseModel, Field, ConfigDict
+
+
+@dataclass
+class SkillMatchResult:
+    jd_skill: str
+    best_match: str | None
+    score: float
+    is_required: bool
 
 Proficiency: TypeAlias = Literal["beginner", "intermediate", "advanced", "expert"]
 
@@ -29,10 +38,6 @@ class JDRequirements(BaseModel):
     soft_skills: list[str]
     industry_context: str
     raw_jd_hash: str
-
-
-class SkillNormalizationMap(BaseModel):
-    mappings: dict[str, str]
 
 
 class SkillEntry(BaseModel):

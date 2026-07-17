@@ -1,6 +1,6 @@
 from src.models.schemas import (
     JDRequirements, SkillRequirement, EducationRequirement,
-    CandidateProfile, CandidateBasicInfo, SkillEntry, SkillNormalizationMap,
+    CandidateProfile, CandidateBasicInfo, SkillEntry, SkillMatchResult,
     WorkEntry, EducationEntry, LanguageEntry,
     CandidateAssessment, EvidenceItem, HallucinationFlag,
     FinalRanking, RankedCandidate,
@@ -32,10 +32,12 @@ def test_skill_entry_has_raw_and_canonical():
     assert entry.canonical_skill == "PostgreSQL"
 
 
-def test_skill_normalization_map_structure():
-    m = SkillNormalizationMap(mappings={"postgres": "PostgreSQL", "vue js": "Vue.js"})
-    assert m.mappings["postgres"] == "PostgreSQL"
-    assert m.mappings["vue js"] == "Vue.js"
+def test_skill_match_result_structure():
+    m = SkillMatchResult(jd_skill="Python", best_match="python", score=1.0, is_required=True)
+    assert m.jd_skill == "Python"
+    assert m.best_match == "python"
+    assert m.score == 1.0
+    assert m.is_required is True
 
 
 def test_candidate_assessment_evidence_chain():

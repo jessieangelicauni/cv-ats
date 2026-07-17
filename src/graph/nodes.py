@@ -2,6 +2,7 @@ from __future__ import annotations
 from opentelemetry.trace import StatusCode
 from src.models.schemas import (
     JDRequirements, CandidateProfile, CandidateAssessment, FinalRanking,
+    SkillMatchResult,
 )
 from src.agents.jd_parser import JDParserAgent
 from src.agents.cv_extractor import CVExtractorAgent
@@ -9,9 +10,8 @@ from src.agents.candidate_judge import CandidateJudgeAgent
 from src.agents.pool_calibrator import PoolCalibratorAgent
 from src.utils.cache import ExtractionCache
 from src.utils.vector_store import CVVectorStore
-from src.utils.skill_matcher import SkillMatcher
+from src.utils.skill_taxonomy import normalize
 from src.utils.telemetry import get_tracer
-import config
 
 _tracer = get_tracer()
 
@@ -56,7 +56,6 @@ def phase3_candidate_judge(
     profiles: list[CandidateProfile],
     jd: JDRequirements,
     vector_store: CVVectorStore | None,
-    skill_matcher: SkillMatcher | None,
     use_evidence_grounding: bool = True,
 ) -> list[CandidateAssessment]:
     with _tracer.start_as_current_span("phase3/candidate_judge") as span:
@@ -71,17 +70,21 @@ def phase3_candidate_judge(
             ) as cspan:
                 try:
                     context_chunks: list[str] = []
-                    skill_matches: list = []
                     if vector_store is not None:
                         context_chunks = vector_store.retrieve(
                             profile.candidate_id, jd_text,
-                            top_k=5,
+                            top_k=10,
                         )
-                    if skill_matcher is not None:
-                        skill_matches = skill_matcher.match(
-                            jd.required_skills + jd.preferred_skills,
-                            profile.skills,
+                    candidate_ids = {normalize(s.canonical_skill) for s in profile.skills}
+                    skill_matches = [
+                        SkillMatchResult(
+                            jd_skill=s.skill,
+                            best_match=normalize(s.skill) if normalize(s.skill) in candidate_ids else None,
+                            score=1.0 if normalize(s.skill) in candidate_ids else 0.0,
+                            is_required=s.is_mandatory,
                         )
+                        for s in jd.required_skills + jd.preferred_skills
+                    ]
                     return CandidateJudgeAgent(
                         use_evidence_grounding=use_evidence_grounding
                     ).run(

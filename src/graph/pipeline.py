@@ -9,13 +9,12 @@ from src.graph.nodes import (
     phase3_candidate_judge, phase4_pool_calibrator,
 )
 from src.utils.cache import ExtractionCache
-from src.utils.embedder import get_embedder
 from src.utils.vector_store import CVVectorStore
-from src.utils.skill_matcher import SkillMatcher
+from src.utils.skill_taxonomy import normalize
 from src.utils.telemetry import setup_telemetry, get_tracer, current_otel_trace_id
 from src.models.schemas import (
     CandidateProfile, CandidateAssessment, JDRequirements,
-    FinalRanking, RankedCandidate,
+    FinalRanking, RankedCandidate, SkillMatchResult,
 )
 import config
 
@@ -23,15 +22,15 @@ import config
 def _filter_by_required_skills(
     profiles: list[CandidateProfile],
     jd: JDRequirements,
-    skill_matcher: SkillMatcher | None,
 ) -> tuple[list[CandidateProfile], list[str]]:
-    if skill_matcher is None or not jd.required_skills:
+    if not jd.required_skills:
         return profiles, []
+    required_ids = {normalize(s.skill) for s in jd.required_skills}
     passing: list[CandidateProfile] = []
     eliminated: list[str] = []
     for profile in profiles:
-        matches = skill_matcher.match(jd.required_skills, profile.skills)
-        if any(m.score >= config.SKILL_MATCH_THRESHOLD for m in matches):
+        candidate_ids = {normalize(s.canonical_skill) for s in profile.skills}
+        if required_ids & candidate_ids:
             passing.append(profile)
         else:
             eliminated.append(profile.candidate_id)
@@ -72,9 +71,8 @@ def run_pipeline(
     setup_telemetry()
     run_id = run_id or str(uuid.uuid4())[:8]
     jd_hash = hashlib.sha256(jd_raw.encode()).hexdigest()[:12]
-    cache         = ExtractionCache(config.CACHE_DB_PATH)  if use_cache else None
-    vector_store  = CVVectorStore(config.CHROMA_DB_PATH)   if use_cache else None
-    skill_matcher = SkillMatcher(get_embedder())
+    cache        = ExtractionCache(config.CACHE_DB_PATH)  if use_cache else None
+    vector_store = CVVectorStore(config.CHROMA_DB_PATH)   if use_cache else None
 
     rag_store = vector_store if use_vector_store else None
 
@@ -108,12 +106,12 @@ def run_pipeline(
 
         if use_skill_filter:
             cv_profiles, eliminated = _filter_by_required_skills(
-                cv_profiles, jd_structured, skill_matcher)
+                cv_profiles, jd_structured)
         else:
             eliminated = []
 
         assessments = _run_phase(3, phase3_candidate_judge, cv_profiles,
-                                 jd_structured, rag_store, skill_matcher,
+                                 jd_structured, rag_store,
                                  use_evidence_grounding)
 
         if use_pool_calibration:

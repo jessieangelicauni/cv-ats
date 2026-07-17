@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 from src.agents.cv_extractor import CVExtractorAgent
 from src.models.schemas import (
     CandidateProfile, CandidateBasicInfo, SkillEntry,
-    WorkEntry, SkillNormalizationMap,
+    WorkEntry,
 )
 
 SAMPLE_CV = """
@@ -50,19 +50,11 @@ def _make_mock_profile() -> CandidateProfile:
     )
 
 
-def _make_mock_norm_map() -> SkillNormalizationMap:
-    return SkillNormalizationMap(mappings={
-        "Python": "Python",
-        "postgres": "PostgreSQL",
-        "Docker": "Docker",
-    })
-
-
 def test_cv_extractor_returns_candidate_profile():
     mock_extract_llm = MagicMock(return_value=_make_mock_profile())
-    mock_norm_llm = MagicMock(return_value=_make_mock_norm_map())
 
-    with patch("src.agents.cv_extractor.get_llm", side_effect=[mock_extract_llm, mock_norm_llm]):
+    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm), \
+         patch("src.agents.cv_extractor.invoke_with_telemetry", return_value=_make_mock_profile()):
         agent = CVExtractorAgent()
         result = agent.run({"raw_text": SAMPLE_CV, "candidate_id": "cv_001", "source_file": "cv_001.pdf"})
 
@@ -71,14 +63,15 @@ def test_cv_extractor_returns_candidate_profile():
     assert result.basic_info.full_name == "Ahmad Faris Bin Razak"
 
 
-def test_cv_extractor_applies_canonicalization():
+def test_cv_extractor_applies_taxonomy_canonicalization():
+    """Taxonomy normalizes 'postgres' -> 'postgresql'."""
     mock_extract_llm = MagicMock(return_value=_make_mock_profile())
-    mock_norm_llm = MagicMock(return_value=_make_mock_norm_map())
 
-    with patch("src.agents.cv_extractor.get_llm", side_effect=[mock_extract_llm, mock_norm_llm]):
+    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm), \
+         patch("src.agents.cv_extractor.invoke_with_telemetry", return_value=_make_mock_profile()):
         agent = CVExtractorAgent()
         result = agent.run({"raw_text": SAMPLE_CV, "candidate_id": "cv_001", "source_file": "cv_001.pdf"})
 
     postgres_skill = next(s for s in result.skills if s.raw_mention == "postgres")
-    assert postgres_skill.canonical_skill == "PostgreSQL"
+    assert postgres_skill.canonical_skill == "postgresql"
     assert postgres_skill.raw_mention == "postgres"

@@ -19,22 +19,3 @@ def human_2a(cv_text: str, candidate_id: str) -> str:
     )
 
 
-SYSTEM_2B = """You are a technology skills normalizer.
-Given a list of raw skill mentions from a resume, return the canonical \
-industry-standard name for each one.
-
-Rules:
-1. Map all variants of the same technology to one canonical name.
-   Examples: "postgre", "postgres", "postgresql" → "PostgreSQL"
-             "node js", "nodejs", "node.js" → "Node.js"
-2. Preserve distinctions between DIFFERENT technologies even if they serve \
-similar purposes. "vue js" → "Vue.js" and "reactjs" → "React" are NOT the same.
-3. Apply correct industry capitalisation: "javascript" → "JavaScript", \
-"aws" → "AWS", "k8s" → "Kubernetes".
-4. If a mention is genuinely ambiguous, keep the raw mention as the canonical name.
-5. Return JSON with a single key "mappings": {raw_mention: canonical_name, ...}."""
-
-
-def human_2b(raw_skills: list[str]) -> str:
-    skills_str = "\n".join(f"- {s}" for s in raw_skills)
-    return f"Normalize the following skill mentions:\n\n{skills_str}"
