@@ -11,7 +11,7 @@ from src.output.report_generator import generate_report
 from src.evaluation.hallucination_checker import verify_evidence_chain, hallucination_rate
 from src.evaluation.calibration_metrics import calibration_report
 from src.evaluation.consistency_runner import run_consistency_experiment
-from src.utils.telemetry import setup_telemetry, get_langfuse, shutdown
+from src.utils.telemetry import setup_telemetry, get_langfuse, get_tracer, shutdown
 import config
 
 app = typer.Typer()
@@ -41,6 +41,7 @@ def main(
     runs: int = typer.Option(1, help="Number of pipeline runs (use 3 for consistency test)"),
     eval: bool = typer.Option(False, help="Run full evaluation suite"),
     no_cache: bool = typer.Option(False, help="Disable extraction cache"),
+    session_id: str | None = typer.Option(None, "--session-id", help="Group this run with others in Langfuse"),
 ):
     """LangGraph ATS — rank IT candidates against a job description."""
     setup_telemetry()
@@ -62,30 +63,35 @@ def main(
 
     try:
         if runs > 1:
-            console.print(f"[blue]Running {runs}× consistency experiment...[/blue]")
-            consistency = run_consistency_experiment(jd_text, cv_raws, n_runs=runs)
-            console.print(f"Consistency mean τ: {consistency['mean_tau']:.3f}")
+            tracer = get_tracer()
+            with tracer.start_as_current_span(
+                "consistency_experiment",
+                attributes={"n_runs": runs, "run.id": run_id},
+            ):
+                console.print(f"[blue]Running {runs}× consistency experiment...[/blue]")
+                consistency = run_consistency_experiment(jd_text, cv_raws, n_runs=runs)
+                console.print(f"Consistency mean τ: {consistency['mean_tau']:.3f}")
 
-            # Log Kendall's τ on each run's Langfuse trace
-            from itertools import combinations
-            for i, (a, b) in enumerate(combinations(range(runs), 2)):
+                # Log Kendall's τ on each run's Langfuse trace
+                from itertools import combinations
+                for i, (a, b) in enumerate(combinations(range(runs), 2)):
+                    lf.create_score(
+                        trace_id=consistency["otel_trace_ids"][a],
+                        name=f"kendall_tau_vs_run{b}",
+                        value=consistency["pairwise_taus"][i],
+                    )
                 lf.create_score(
-                    trace_id=consistency["otel_trace_ids"][a],
-                    name=f"kendall_tau_vs_run{b}",
-                    value=consistency["pairwise_taus"][i],
+                    trace_id=consistency["otel_trace_ids"][0],
+                    name="mean_tau",
+                    value=consistency["mean_tau"],
+                    comment=f"session_id={consistency['session_id']}",
                 )
-            lf.create_score(
-                trace_id=consistency["otel_trace_ids"][0],
-                name="mean_tau",
-                value=consistency["mean_tau"],
-                comment=f"session_id={consistency['session_id']}",
-            )
 
-            import json
-            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
-            (out_dir / "evaluation" / "consistency_metrics.json").write_text(
-                json.dumps(consistency, indent=2), encoding="utf-8"
-            )
+                import json
+                (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
+                (out_dir / "evaluation" / "consistency_metrics.json").write_text(
+                    json.dumps(consistency, indent=2), encoding="utf-8"
+                )
             return
 
         phase_labels = {
@@ -106,7 +112,7 @@ def main(
 
             state = run_pipeline(
                 jd_text, cv_raws, run_id=run_id, use_cache=not no_cache,
-                on_phase_complete=on_phase_complete,
+                session_id=session_id, on_phase_complete=on_phase_complete,
             )
 
         otel_trace_id = state.otel_trace_id
