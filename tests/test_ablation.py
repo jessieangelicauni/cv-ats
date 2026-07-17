@@ -63,6 +63,12 @@ def test_run_ablation_passes_correct_kwargs_to_pipeline():
     no_eg_call = next(kw for kw in captured_kwargs if kw.get("use_evidence_grounding") is False)
     assert no_eg_call is not None
 
+    no_sf_call = next(kw for kw in captured_kwargs if kw.get("use_skill_filter") is False)
+    assert no_sf_call is not None
+
+    no_cal_call = next(kw for kw in captured_kwargs if kw.get("use_pool_calibration") is False)
+    assert no_cal_call is not None
+
 
 def test_run_ablation_result_contains_all_variants():
     full_state = _make_state(["a", "b"])

@@ -41,6 +41,7 @@ def run_ablation(
     cv_text_map: dict[str, str],
 ) -> dict:
     full_ranking = [r.candidate_id for r in full_state.final_ranking.ranked_candidates]
+    # full_system was already run before run_ablation; LLM count is not capturable post-hoc
     results = {"full_system": _variant_metrics(full_state, full_ranking, cv_text_map, llm_calls=0)}
     results["full_system"]["tau_vs_full"] = 1.0
 
@@ -48,7 +49,10 @@ def run_ablation(
         name = variant["name"]
         kwargs = {k: v for k, v in variant.items() if k != "name"}
         reset_call_count()
-        state = run_pipeline(jd_raw, cv_raws, **kwargs)
-        results[name] = _variant_metrics(state, full_ranking, cv_text_map, llm_calls=get_call_count())
+        try:
+            state = run_pipeline(jd_raw, cv_raws, **kwargs)
+        finally:
+            llm_calls = get_call_count()
+        results[name] = _variant_metrics(state, full_ranking, cv_text_map, llm_calls=llm_calls)
 
     return results
