@@ -1,10 +1,9 @@
 # Environment
 .env
-
+.docs
 # Cache & runtime artifacts
 .cache/
 results/
-ground_truth/
 
 # Python
 __pycache__/

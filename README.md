@@ -133,7 +133,6 @@ cv-ats/
 ├── .env.example
 ├── jd/                      # sample job descriptions
 ├── resume/                  # sample candidate CV PDFs
-├── ground_truth/            # ground-truth labels for evaluation (gitignored)
 ├── results/                 # pipeline run outputs (gitignored)
 ├── src/
 │   ├── agents/              # one module per pipeline phase
