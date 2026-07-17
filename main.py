@@ -91,9 +91,8 @@ def main(
         phase_labels = {
             1: "[Phase 1] Parsing job description...",
             2: "[Phase 2] Extracting CV profiles...",
-            3: "[Phase 3] Enriching candidate signals...",
-            4: "[Phase 4] Judging candidates...",
-            5: "[Phase 5] Calibrating final ranking...",
+            3: "[Phase 3] Judging candidates...",
+            4: "[Phase 4] Calibrating final ranking...",
         }
 
         with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
@@ -110,20 +109,20 @@ def main(
                 on_phase_complete=on_phase_complete,
             )
 
-        otel_trace_id = state["otel_trace_id"]
+        otel_trace_id = state.otel_trace_id
 
-        ranking = state["final_ranking"]
-        table = Table(title=f"Ranking — {state['jd_structured'].role_title}")
+        ranking = state.final_ranking
+        table = Table(title=f"Ranking — {state.jd_structured.role_title}")
         table.add_column("Rank", style="bold")
         table.add_column("Candidate")
         table.add_column("Name")
         table.add_column("Score")
-        table.add_column("Δ Phase5")
+        table.add_column("Δ Phase4")
         table.add_column("Confidence")
         table.add_column("Seniority")
 
-        profile_map = {p.candidate_id: p for p in state["cv_profiles"]}
-        assessment_map = {a.candidate_id: a for a in state["candidate_assessments"]}
+        profile_map = {p.candidate_id: p for p in state.cv_profiles}
+        assessment_map = {a.candidate_id: a for a in state.candidate_assessments}
 
         for rc in ranking.ranked_candidates:
             p = profile_map.get(rc.candidate_id)
@@ -143,14 +142,14 @@ def main(
             console.print("[blue]Running evaluation suite...[/blue]")
             all_flags = []
             cv_text_map = {c["candidate_id"]: c["raw_text"] for c in cv_raws}
-            for a in state["candidate_assessments"]:
+            for a in state.candidate_assessments:
                 flags = verify_evidence_chain(a, cv_text_map.get(a.candidate_id, ""))
                 all_flags.extend(flags)
-            state["hallucination_flags"] = all_flags
+            state.hallucination_flags = all_flags
             h_rate = hallucination_rate(all_flags)
             console.print(f"Hallucination rate: {h_rate:.1%}")
 
-            cal = calibration_report(state["candidate_assessments"], ranking)
+            cal = calibration_report(state.candidate_assessments, ranking)
             console.print(f"Calibration — raw std: {cal['raw_std']:.1f}, calibrated std: {cal['calibrated_std']:.1f}")
             console.print(f"Mean Phase 5 delta: {cal['mean_abs_delta']:.1f}, rank changes: {cal['rank_changes']}")
 
