@@ -25,8 +25,8 @@ def keyword_rank(jd_text: str, cv_raws: list[dict]) -> tuple[list[str], dict[str
     }
     counts: dict[str, float] = {}
     for cv in cv_raws:
-        text_lower = cv["raw_text"].lower()
-        counts[cv["candidate_id"]] = float(sum(1 for kw in jd_tokens if kw in text_lower))
+        cv_tokens = set(cv["raw_text"].lower().split())
+        counts[cv["candidate_id"]] = float(sum(1 for kw in jd_tokens if kw in cv_tokens))
     ranking = sorted(candidate_ids, key=lambda cid: counts[cid], reverse=True)
     return ranking, counts
 

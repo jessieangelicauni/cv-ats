@@ -74,7 +74,7 @@ def run_pipeline(
     jd_hash = hashlib.sha256(jd_raw.encode()).hexdigest()[:12]
     cache         = ExtractionCache(config.CACHE_DB_PATH)  if use_cache else None
     vector_store  = CVVectorStore(config.CHROMA_DB_PATH)   if use_cache else None
-    skill_matcher = SkillMatcher(get_embedder())            if use_cache else None
+    skill_matcher = SkillMatcher(get_embedder())
 
     rag_store = vector_store if use_vector_store else None
 

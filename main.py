@@ -203,19 +203,19 @@ def main(
             bl_table.add_row("EvidenceRank", " > ".join(er["ranking"]), "1.000")
             console.print(bl_table)
 
-            # Langfuse scores
+            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
+            (out_dir / "evaluation" / "baselines.json").write_text(
+                json.dumps(baseline_results, indent=2), encoding="utf-8"
+            )
+            console.print(f"[green]Baselines saved to {out_dir}/evaluation/baselines.json[/green]")
+
+            # Langfuse scores (best-effort, after the important write is done)
             lf.create_score(trace_id=otel_trace_id, name="baseline_tfidf_tau",
                             value=baseline_results["cross_method_tau"]["tfidf_vs_evidencerank"])
             lf.create_score(trace_id=otel_trace_id, name="baseline_keyword_tau",
                             value=baseline_results["cross_method_tau"]["keyword_vs_evidencerank"])
             lf.create_score(trace_id=otel_trace_id, name="baseline_tfidf_vs_keyword_tau",
                             value=baseline_results["cross_method_tau"]["tfidf_vs_keyword"])
-
-            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
-            (out_dir / "evaluation" / "baselines.json").write_text(
-                json.dumps(baseline_results, indent=2), encoding="utf-8"
-            )
-            console.print(f"[green]Baselines saved to {out_dir}/evaluation/baselines.json[/green]")
 
         if ablation:
             console.print("[blue]Running ablation study (this will make additional LLM calls)...[/blue]")
@@ -237,7 +237,13 @@ def main(
                 )
             console.print(ab_table)
 
-            # Langfuse scores
+            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
+            (out_dir / "evaluation" / "ablation.json").write_text(
+                json.dumps(ablation_results, indent=2), encoding="utf-8"
+            )
+            console.print(f"[green]Ablation saved to {out_dir}/evaluation/ablation.json[/green]")
+
+            # Langfuse scores (best-effort, after the important write is done)
             for variant_name, metrics in ablation_results.items():
                 lf.create_score(trace_id=otel_trace_id,
                                 name=f"ablation_{variant_name}_hallucination_rate",
@@ -245,12 +251,6 @@ def main(
                 lf.create_score(trace_id=otel_trace_id,
                                 name=f"ablation_{variant_name}_tau",
                                 value=metrics["tau_vs_full"])
-
-            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
-            (out_dir / "evaluation" / "ablation.json").write_text(
-                json.dumps(ablation_results, indent=2), encoding="utf-8"
-            )
-            console.print(f"[green]Ablation saved to {out_dir}/evaluation/ablation.json[/green]")
 
     finally:
         shutdown()  # explicit flush — atexit is a backup, not guaranteed in CLI
