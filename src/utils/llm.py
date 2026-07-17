@@ -6,6 +6,17 @@ from langchain_core.runnables import RunnableConfig
 
 T = TypeVar("T", bound=BaseModel)
 
+_llm_call_count: int = 0
+
+
+def reset_call_count() -> None:
+    global _llm_call_count
+    _llm_call_count = 0
+
+
+def get_call_count() -> int:
+    return _llm_call_count
+
 
 def get_llm(model: str, schema: Type[T], temperature: float = 0.0):
     """Return a structured-output LLM chain that returns validated instances of `schema`."""
@@ -25,6 +36,7 @@ def invoke_with_telemetry(chain, messages: list, run_name: str | None = None):
     is active in the calling thread. run_name labels the generation itself —
     without it every call shows up in Langfuse as the generic "RunnableSequence".
     """
+    global _llm_call_count; _llm_call_count += 1
     from src.utils.telemetry import make_callback
     return chain.invoke(
         messages, RunnableConfig(callbacks=[make_callback()], run_name=run_name)

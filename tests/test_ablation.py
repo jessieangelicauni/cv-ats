@@ -33,7 +33,9 @@ def test_run_ablation_calls_pipeline_once_per_variant():
     with patch("src.evaluation.ablation.run_pipeline",
                return_value=_make_state(["a", "b"])) as mock_pipe, \
          patch("src.evaluation.ablation.verify_evidence_chain", return_value=[]), \
-         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0):
+         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0), \
+         patch("src.evaluation.ablation.reset_call_count"), \
+         patch("src.evaluation.ablation.get_call_count", return_value=2):
         run_ablation("jd", [], full_state, cv_text_map)
 
     assert mock_pipe.call_count == len(ABLATION_VARIANTS)
@@ -50,7 +52,9 @@ def test_run_ablation_passes_correct_kwargs_to_pipeline():
 
     with patch("src.evaluation.ablation.run_pipeline", side_effect=capture), \
          patch("src.evaluation.ablation.verify_evidence_chain", return_value=[]), \
-         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0):
+         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0), \
+         patch("src.evaluation.ablation.reset_call_count"), \
+         patch("src.evaluation.ablation.get_call_count", return_value=2):
         run_ablation("jd", [], full_state, cv_text_map)
 
     no_rag_call = next(kw for kw in captured_kwargs if kw.get("use_vector_store") is False)
@@ -67,7 +71,9 @@ def test_run_ablation_result_contains_all_variants():
     with patch("src.evaluation.ablation.run_pipeline",
                return_value=_make_state(["a", "b"])), \
          patch("src.evaluation.ablation.verify_evidence_chain", return_value=[]), \
-         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0):
+         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0), \
+         patch("src.evaluation.ablation.reset_call_count"), \
+         patch("src.evaluation.ablation.get_call_count", return_value=2):
         result = run_ablation("jd", [], full_state, cv_text_map)
 
     assert "full_system" in result
@@ -82,7 +88,9 @@ def test_run_ablation_metrics_keys():
     with patch("src.evaluation.ablation.run_pipeline",
                return_value=_make_state(["a", "b"])), \
          patch("src.evaluation.ablation.verify_evidence_chain", return_value=[]), \
-         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0):
+         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0), \
+         patch("src.evaluation.ablation.reset_call_count"), \
+         patch("src.evaluation.ablation.get_call_count", return_value=2):
         result = run_ablation("jd", [], full_state, cv_text_map)
 
     for metrics in result.values():
@@ -98,7 +106,23 @@ def test_full_system_tau_is_one():
     with patch("src.evaluation.ablation.run_pipeline",
                return_value=_make_state(["a", "b"])), \
          patch("src.evaluation.ablation.verify_evidence_chain", return_value=[]), \
-         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0):
+         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0), \
+         patch("src.evaluation.ablation.reset_call_count"), \
+         patch("src.evaluation.ablation.get_call_count", return_value=2):
         result = run_ablation("jd", [], full_state, cv_text_map)
 
     assert result["full_system"]["tau_vs_full"] == 1.0
+
+
+def test_run_ablation_resets_call_count_per_variant():
+    full_state = _make_state(["a", "b"])
+    cv_text_map = {"a": "text a", "b": "text b"}
+
+    with patch("src.evaluation.ablation.run_pipeline", return_value=_make_state(["a", "b"])), \
+         patch("src.evaluation.ablation.verify_evidence_chain", return_value=[]), \
+         patch("src.evaluation.ablation.hallucination_rate", return_value=0.0), \
+         patch("src.evaluation.ablation.reset_call_count") as mock_reset, \
+         patch("src.evaluation.ablation.get_call_count", return_value=3):
+        run_ablation("jd", [], full_state, cv_text_map)
+
+    assert mock_reset.call_count == len(ABLATION_VARIANTS)
