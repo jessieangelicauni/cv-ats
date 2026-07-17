@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import uuid
 from pathlib import Path
 import typer
@@ -11,6 +12,8 @@ from src.output.report_generator import generate_report
 from src.evaluation.hallucination_checker import verify_evidence_chain, hallucination_rate
 from src.evaluation.calibration_metrics import calibration_report
 from src.evaluation.consistency_runner import run_consistency_experiment
+from src.evaluation.baselines import run_baselines
+from src.evaluation.ablation import run_ablation
 from src.utils.telemetry import setup_telemetry, get_langfuse, get_tracer, shutdown
 import config
 
@@ -40,10 +43,12 @@ def main(
     output: Path = typer.Option(Path("results"), help="Output directory"),
     runs: int = typer.Option(1, help="Number of pipeline runs (use 3 for consistency test)"),
     eval: bool = typer.Option(False, help="Run full evaluation suite"),
+    baselines: bool = typer.Option(False, "--baselines", help="Run TF-IDF and keyword baseline rankers"),
+    ablation: bool = typer.Option(False, "--ablation", help="Run 4-variant ablation study (LLM-heavy)"),
     no_cache: bool = typer.Option(False, help="Disable extraction cache"),
     session_id: str | None = typer.Option(None, "--session-id", help="Group this run with others in Langfuse"),
 ):
-    """LangGraph ATS — rank IT candidates against a job description."""
+    """EvidenceRank ATS — rank IT candidates against a job description."""
     setup_telemetry()
 
     if not jd.exists():
@@ -87,7 +92,6 @@ def main(
                     comment=f"session_id={consistency['session_id']}",
                 )
 
-                import json
                 (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
                 (out_dir / "evaluation" / "consistency_metrics.json").write_text(
                     json.dumps(consistency, indent=2), encoding="utf-8"
@@ -144,10 +148,11 @@ def main(
             )
         console.print(table)
 
+        cv_text_map = {c["candidate_id"]: c["raw_text"] for c in cv_raws}
+
         if eval:
             console.print("[blue]Running evaluation suite...[/blue]")
             all_flags = []
-            cv_text_map = {c["candidate_id"]: c["raw_text"] for c in cv_raws}
             for a in state.candidate_assessments:
                 flags = verify_evidence_chain(a, cv_text_map.get(a.candidate_id, ""))
                 all_flags.extend(flags)
@@ -157,7 +162,7 @@ def main(
 
             cal = calibration_report(state.candidate_assessments, ranking)
             console.print(f"Calibration — raw std: {cal['raw_std']:.1f}, calibrated std: {cal['calibrated_std']:.1f}")
-            console.print(f"Mean Phase 5 delta: {cal['mean_abs_delta']:.1f}, rank changes: {cal['rank_changes']}")
+            console.print(f"Mean Phase 4 delta: {cal['mean_abs_delta']:.1f}, rank changes: {cal['rank_changes']}")
 
             # Log evaluation metrics as Langfuse scores on this run's trace
             fabricated = sum(1 for f in all_flags if f.status == "fabricated")
@@ -172,7 +177,6 @@ def main(
             lf.create_score(trace_id=otel_trace_id, name="calibration_mean_abs_delta", value=cal["mean_abs_delta"])
             lf.create_score(trace_id=otel_trace_id, name="rank_changes",               value=float(cal["rank_changes"]))
 
-            import json
             (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
             (out_dir / "evaluation" / "calibration_report.json").write_text(
                 json.dumps(cal, indent=2), encoding="utf-8"
@@ -180,6 +184,74 @@ def main(
 
         generate_report(state, out_dir)
         console.print(f"\n[green]Report written to {out_dir}/report.md[/green]")
+
+        if baselines:
+            console.print("[blue]Running baseline comparison...[/blue]")
+            evidencerank_ranking = [rc.candidate_id for rc in ranking.ranked_candidates]
+            baseline_results = run_baselines(jd_text, cv_raws, evidencerank_ranking)
+
+            bl_table = Table(title="Baseline Comparison")
+            bl_table.add_column("Method")
+            bl_table.add_column("Ranking (1→N)")
+            bl_table.add_column("τ vs EvidenceRank")
+            for method in ("tfidf", "keyword"):
+                r = baseline_results[method]
+                ranking_str = " > ".join(r["ranking"])
+                tau = baseline_results["cross_method_tau"][f"{method}_vs_evidencerank"]
+                bl_table.add_row(method.upper(), ranking_str, f"{tau:.3f}")
+            er = baseline_results["evidencerank"]
+            bl_table.add_row("EvidenceRank", " > ".join(er["ranking"]), "1.000")
+            console.print(bl_table)
+
+            # Langfuse scores
+            lf.create_score(trace_id=otel_trace_id, name="baseline_tfidf_tau",
+                            value=baseline_results["cross_method_tau"]["tfidf_vs_evidencerank"])
+            lf.create_score(trace_id=otel_trace_id, name="baseline_keyword_tau",
+                            value=baseline_results["cross_method_tau"]["keyword_vs_evidencerank"])
+            lf.create_score(trace_id=otel_trace_id, name="baseline_tfidf_vs_keyword_tau",
+                            value=baseline_results["cross_method_tau"]["tfidf_vs_keyword"])
+
+            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
+            (out_dir / "evaluation" / "baselines.json").write_text(
+                json.dumps(baseline_results, indent=2), encoding="utf-8"
+            )
+            console.print(f"[green]Baselines saved to {out_dir}/evaluation/baselines.json[/green]")
+
+        if ablation:
+            console.print("[blue]Running ablation study (this will make additional LLM calls)...[/blue]")
+            cv_text_map_ab = {c["candidate_id"]: c["raw_text"] for c in cv_raws}
+            ablation_results = run_ablation(jd_text, cv_raws, state, cv_text_map_ab)
+
+            ab_table = Table(title="Ablation Study")
+            ab_table.add_column("Variant")
+            ab_table.add_column("Hallucination Rate")
+            ab_table.add_column("Score Std")
+            ab_table.add_column("LLM Calls")
+            ab_table.add_column("τ vs Full")
+            for variant_name, metrics in ablation_results.items():
+                ab_table.add_row(
+                    variant_name,
+                    f"{metrics['hallucination_rate']:.1%}",
+                    f"{metrics['score_std']:.1f}",
+                    str(metrics['llm_calls']),
+                    f"{metrics['tau_vs_full']:.3f}",
+                )
+            console.print(ab_table)
+
+            # Langfuse scores
+            for variant_name, metrics in ablation_results.items():
+                lf.create_score(trace_id=otel_trace_id,
+                                name=f"ablation_{variant_name}_hallucination_rate",
+                                value=metrics["hallucination_rate"])
+                lf.create_score(trace_id=otel_trace_id,
+                                name=f"ablation_{variant_name}_tau",
+                                value=metrics["tau_vs_full"])
+
+            (out_dir / "evaluation").mkdir(parents=True, exist_ok=True)
+            (out_dir / "evaluation" / "ablation.json").write_text(
+                json.dumps(ablation_results, indent=2), encoding="utf-8"
+            )
+            console.print(f"[green]Ablation saved to {out_dir}/evaluation/ablation.json[/green]")
 
     finally:
         shutdown()  # explicit flush — atexit is a backup, not guaranteed in CLI
