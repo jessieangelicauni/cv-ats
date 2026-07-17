@@ -51,14 +51,7 @@ constraint requiring every dimension score to cite a verbatim text quote, backed
 post-hoc semantic verification using all-MiniLM-L6-v2; (3) a \emph{semantic skill
 pre-filter} that eliminates candidates lacking required-skill matches through cosine
 similarity before expensive LLM judging; and (4) a \emph{pool-aware holistic
-calibration} phase that resolves borderline pairs through comparative reasoning. A
-pilot evaluation on 12 anonymised IT CVs against two job descriptions shows that
-EvidenceRank reduces LLM hallucination from 21.6\% to 7.3\%, achieves a
-Pearson $r = 0.812$ correlation with human expert rankings versus $r = 0.591$ for
-TF-IDF baselines, and maintains Kendall's $\tau = 0.847$ (SD = 0.032) across
-repeated runs—demonstrating near-deterministic ranking stability. The pre-filter
-reduces LLM invocations by 23\% with zero false negatives on the human-validated
-shortlist.
+calibration} phase that resolves borderline pairs through comparative reasoning.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -131,7 +124,7 @@ To address these three problems, we make the following contributions:
 
   \item We implement a \textbf{semantic skill pre-filter} using MiniLM-based
         cosine similarity that eliminates candidates below a required-skill
-        match threshold before LLM judging, reducing compute cost by 23\%.
+        match threshold before LLM judging, reducing unnecessary LLM invocations.
 
   \item We quantify \textbf{ranking stability} using Kendall's $\tau$ across
         three repeated pipeline runs, providing the first reported consistency
@@ -522,61 +515,70 @@ continuous quality monitoring in production deployments.
 \section{Experimental Design}
 \label{sec:experiment}
 
+%% TODO: Replace with final dataset description after data collection.
 \subsection{Dataset}
 
-We compiled a pilot evaluation dataset of 12 anonymised IT candidate CVs, spanning
-four seniority levels (junior, mid, senior, lead) and three technical
-specialisations (backend engineering, data engineering, DevOps). CVs were sourced
-from a university career services office and anonymised by removing names, contact
-details, and institutional names. Two IT job descriptions were constructed:
-$\text{JD}_1$ — Senior Backend Engineer (Python/PostgreSQL/Kubernetes stack, 5+
-years required), and $\text{JD}_2$ — Data Engineer (Spark/Airflow/dbt stack,
-3+ years required). This yielded 24 evaluation instances (12 candidates
-$\times$ 2 JDs).
+We plan to evaluate EvidenceRank on a dataset of %% TODO: N
+anonymised IT candidate CVs spanning multiple seniority levels and technical
+specialisations. CVs will be collected and anonymised by removing names, contact
+details, and institutional identifiers. Two IT job descriptions will be used:
+$\text{JD}_1$ and $\text{JD}_2$ (details %% TODO: to be specified).
+This will yield %% TODO: N $\times$ 2 evaluation instances.
 
-\subsection{Ground Truth Annotation}
+%% TODO: Replace with final ground-truth methodology if human annotation is added.
+\subsection{Evaluation Protocol}
 
-Three IT hiring professionals with at least 5 years of recruitment experience
-were asked to independently rank the 12 candidates for each JD on a 0–100 scale
-without time constraints, having access only to the anonymised CV text and JD.
-Inter-annotator agreement was measured using Krippendorff's $\alpha = 0.71$,
-indicating substantial agreement. The mean rank across annotators was used as
-the ground-truth ranking for correlation analysis.
+As no human-annotated ground truth is currently available, we assess ranking
+quality through internal cross-method agreement (Kendall's $\tau$ between
+EvidenceRank and each baseline), hallucination rate, score distribution spread,
+and run-to-run consistency. These metrics are computed automatically from pipeline
+outputs without requiring external annotation.
 
+%% TODO: Replace with final baseline descriptions after running the experiment.
 \subsection{Baselines}
 
-We compare EvidenceRank against four baselines:
+We compare EvidenceRank against two non-LLM baselines:
 
 \begin{enumerate}
-  \item \textbf{TF-IDF + Cosine (B1)}: TF-IDF vectorisation of CV and JD, ranked
-        by cosine similarity. No LLM involved. This represents the conventional
-        ATS keyword-based approach.
-  \item \textbf{Single-LLM Zero-Shot (B2)}: A single direct prompt to the large
-        LLM (same \texttt{llama3.3:70b}) asking it to rate the candidate on a
-        0–100 scale. No pipeline, no structured schema, no evidence requirement.
-  \item \textbf{Multi-Agent No-RAG (B3)}: EvidenceRank pipeline \emph{without}
-        ChromaDB retrieval. The LLM assessor receives the full raw CV text.
-        This is an ablation to isolate the contribution of self-document RAG.
-  \item \textbf{Multi-Agent No-Filter (B4)}: EvidenceRank pipeline \emph{without}
-        the semantic skill pre-filter. All candidates proceed to LLM judging.
-        This ablation measures the contribution of the pre-filter.
+  \item \textbf{TF-IDF + Cosine (B1)}: TF-IDF vectorisation of CV and JD texts,
+        ranked by cosine similarity. No LLM involved. Represents the conventional
+        keyword-based ATS approach.
+  \item \textbf{Keyword Heuristic (B2)}: Count of JD keyword matches (non-stopword
+        terms) in each CV, ranked by descending match count.
+\end{enumerate}
+
+\subsection{Ablation Study Design}
+
+We evaluate four pipeline variants by disabling one component at a time:
+
+\begin{enumerate}
+  \item \textbf{No RAG} (\texttt{use\_vector\_store=False}): CV extractor receives
+        full raw text; judge receives no focused context chunks. Isolates the
+        contribution of self-document RAG.
+  \item \textbf{No Evidence Grounding} (\texttt{use\_evidence\_grounding=False}):
+        Judge uses a prompt without the verbatim-citation requirement. Isolates the
+        contribution of the evidence-chain constraint to hallucination reduction.
+  \item \textbf{No Skill Filter} (\texttt{use\_skill\_filter=False}): All candidates
+        proceed to Phase 3 regardless of skill coverage score. Measures LLM call
+        savings from the semantic pre-filter.
+  \item \textbf{No Calibration} (\texttt{use\_pool\_calibration=False}): Phase 3 raw
+        scores are sorted directly into the final ranking; Phase 4 is skipped.
+        Assesses whether pool-aware calibration meaningfully shifts rankings.
 \end{enumerate}
 
 \subsection{Evaluation Metrics}
 
 \begin{enumerate}
-  \item \textbf{Pearson $r$}: Correlation between pipeline-generated calibrated
-        scores and human expert mean scores.
-  \item \textbf{Recall@3}: Proportion of the human-shortlisted top-3 candidates
-        appearing in the pipeline's top-3. Critical for avoiding false negatives in
-        the shortlisting step.
   \item \textbf{Hallucination rate} $H$ (Equation~\ref{eq:hallucination_rate}):
-        Measured for EvidenceRank and B3 by running the post-hoc hallucination
-        checker on all assessments.
-  \item \textbf{Kendall's $\tau$}: Mean pairwise rank correlation across 3
-        repeated pipeline runs (Equation~\ref{eq:kendall}).
-  \item \textbf{LLM invocations}: Total LLM calls per evaluation instance,
+        Proportion of evidence claims classified as fabricated by the post-hoc
+        MiniLM cosine checker.
+  \item \textbf{Score standard deviation}: Spread of calibrated scores across
+        candidates, indicating discriminative power.
+  \item \textbf{LLM invocation count}: Total LLM calls per evaluation instance,
         measuring compute efficiency.
+  \item \textbf{Kendall's $\tau$}: Pairwise rank correlation between EvidenceRank
+        and each baseline/ablation variant; and across repeated pipeline runs for
+        consistency measurement.
 \end{enumerate}
 
 \subsection{Implementation Details}
@@ -586,90 +588,83 @@ orchestration, ChromaDB (v0.6+) for vector storage, sentence-transformers (v5.6+
 with \texttt{all-MiniLM-L6-v2} for embeddings, and Pydantic v2 for schema
 validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-model
 tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
-Experiments were conducted on a workstation with an NVIDIA RTX 4090 (24 GB VRAM)
-running Ollama v0.6. Each full pipeline run on 12 candidates took approximately
-18 minutes.
+%% TODO: Report actual hardware and runtime after running experiments.
 
 %% ─────────────────────────────────────────────────────────────────────────────
 \section{Results and Discussion}
 \label{sec:results}
 
-\subsection{Human Expert Correlation}
+%% TODO: Replace all placeholder tables and narrative with actual results after running
+%% TODO: the experiment (uv run python main.py --baselines --ablation --eval).
 
-Table~\ref{tab:correlation} reports Pearson $r$ and Recall@3 for each method.
+\subsection{Baseline Comparison}
 
+%% TODO: Insert actual results table after running --baselines.
 \begin{table}[!t]
-\caption{Human Expert Correlation and Shortlist Recall}
-\label{tab:correlation}
+\caption{Baseline Comparison — Kendall's $\tau$ vs.\ EvidenceRank}
+\label{tab:baselines}
 \centering
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lcccc}
+\begin{tabular}{lcc}
 \toprule
-\textbf{Method} & \textbf{Pearson $r$} & \textbf{Recall@3} & \textbf{$H$ (\%)} & \textbf{LLM calls} \\
+\textbf{Method} & \textbf{$\tau$ vs.\ EvidenceRank} & \textbf{Score Std} \\
 \midrule
-B1: TF-IDF Cosine           & 0.591 & 0.667 & N/A   & 0    \\
-B2: Single-LLM Zero-Shot    & 0.643 & 0.667 & 24.1  & 12   \\
-B3: Multi-Agent No-RAG      & 0.769 & 0.833 & 21.6  & 37   \\
-B4: Multi-Agent No-Filter   & 0.801 & 1.000 & 10.2  & 39   \\
-\textbf{EvidenceRank (Ours)} & \textbf{0.812} & \textbf{1.000} & \textbf{7.3} & \textbf{30} \\
+B1: TF-IDF Cosine    & \textit{TBD} & \textit{TBD} \\
+B2: Keyword Heuristic & \textit{TBD} & \textit{TBD} \\
+\textbf{EvidenceRank} & 1.000        & \textit{TBD} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-EvidenceRank achieves the highest Pearson $r = 0.812$, representing a 37\%
-improvement over the TF-IDF baseline ($r = 0.591$) and a 5.6\% gain over
-Multi-Agent No-RAG ($r = 0.769$). This improvement confirms the contribution of
-self-document RAG: providing focused context excerpts alongside the full profile
-enables the LLM to produce more accurate dimensional assessments.
-
-Recall@3 = 1.000 for both B4 and EvidenceRank confirms that the semantic skill
-pre-filter does not introduce false negatives: every human-validated top-3
-candidate was retained. The pre-filter correctly eliminated 2 candidates per JD
-on average (17\%), reducing Phase 3 LLM calls from 12 to approximately 10, and
-combined with the dual-LLM Phase 2 design, total LLM invocations decreased from
-39 (B4) to 30 (EvidenceRank), a 23\% reduction.
+%% TODO: Write narrative after results are available.
 
 \subsection{Hallucination Analysis}
 
-Table~\ref{tab:hallucination} breaks down hallucination classifications across
-methods with post-hoc checking enabled.
-
+%% TODO: Insert actual hallucination breakdown table after running --eval.
 \begin{table}[!t]
-\caption{Hallucination Classification Breakdown (per 100 evidence claims)}
+\caption{Hallucination Rate by Configuration}
 \label{tab:hallucination}
 \centering
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lcccc}
+\begin{tabular}{lc}
 \toprule
-\textbf{Method} & \textbf{Supported} & \textbf{Inferred} & \textbf{Fabricated} & \textbf{$H$ (\%)} \\
+\textbf{Configuration} & \textbf{Hallucination Rate $H$ (\%)} \\
 \midrule
-B2: Single-LLM Zero-Shot & 51.2 & 24.7 & 24.1 & 24.1 \\
-B3: Multi-Agent No-RAG   & 59.4 & 19.0 & 21.6 & 21.6 \\
-B4: Multi-Agent No-Filter & 71.8 & 18.0 & 10.2 & 10.2 \\
-\textbf{EvidenceRank}    & \textbf{78.4} & \textbf{14.3} & \textbf{7.3} & \textbf{7.3} \\
+Full EvidenceRank          & \textit{TBD} \\
+No Evidence Grounding      & \textit{TBD} \\
+No RAG                     & \textit{TBD} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The hallucination rate drops from 24.1\% (single LLM) to 7.3\% (EvidenceRank), a
-69.7\% reduction. The primary mechanism is the evidence chain constraint: forcing
-the LLM to cite verbatim text before assigning a score significantly suppresses
-confabulation. The RAG layer compounds this benefit: providing paragraph-level
-excerpts from the correct CV section reduces context dilution that leads the model
-to generate plausible but ungrounded claims.
+%% TODO: Write narrative after results are available.
 
-Comparing B3 (21.6\%) to B4 (10.2\%) isolates the contribution of the RAG
-mechanism itself: supplying focused CV chunks directly halves the fabrication rate
-even before the skill pre-filter is applied. The remaining 7.3\% fabrication in
-EvidenceRank consists primarily of paraphrased but non-verbatim claims that
-fall below the 0.85 cosine threshold—candidates for future work in adaptive
-threshold calibration.
+\subsection{Ablation Study}
+
+%% TODO: Insert actual ablation table after running --ablation.
+\begin{table}[!t]
+\caption{Ablation Study: Contribution of Each Pipeline Component}
+\label{tab:ablation}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Configuration} & \textbf{$H$ (\%)} & \textbf{Score Std} & \textbf{$\tau$ vs Full} & \textbf{LLM Calls} \\
+\midrule
+Full EvidenceRank       & \textit{TBD} & \textit{TBD} & 1.000        & \textit{TBD} \\
+No RAG                  & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+No Evidence Grounding   & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+No Skill Filter         & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+No Calibration          & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% TODO: Write narrative after results are available.
 
 \subsection{Ranking Stability}
 
-Table~\ref{tab:consistency} reports Kendall's $\tau$ across three repeated pipeline
-runs for each JD using temperature $> 0$ settings.
-
+%% TODO: Insert actual Kendall's tau consistency table after running --runs 3.
 \begin{table}[!t]
 \caption{Ranking Stability Across Three Repeated Runs (Kendall's $\tau$)}
 \label{tab:consistency}
@@ -679,157 +674,27 @@ runs for each JD using temperature $> 0$ settings.
 \toprule
  & \textbf{Run 1 vs 2} & \textbf{Run 1 vs 3} & \textbf{Run 2 vs 3} & \textbf{Mean $\tau$} \\
 \midrule
-$\text{JD}_1$: Backend  & 0.879 & 0.841 & 0.867 & 0.862 \\
-$\text{JD}_2$: Data Eng & 0.852 & 0.819 & 0.836 & 0.836 \\
+$\text{JD}_1$ & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+$\text{JD}_2$ & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \midrule
-\textbf{Overall}        & 0.866 & 0.830 & 0.852 & \textbf{0.847 (SD=0.032)} \\
+\textbf{Overall} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Mean Kendall's $\tau = 0.847$ (SD = 0.032) indicates high ranking stability
-across repeated pipeline runs. To contextualise this, human inter-annotator
-agreement computed as mean pairwise $\tau$ among the three HR experts was 0.823
-(Krippendorff's $\alpha = 0.71$). The EvidenceRank pipeline therefore achieves
-\emph{greater} run-to-run consistency than human annotators, suggesting that the
-evidence-grounding constraints and structured Pydantic schemas serve as
-consistency stabilisers that counteract LLM non-determinism.
-
-The lower $\tau$ for $\text{JD}_2$ (Data Engineering) versus $\text{JD}_1$
-(Backend Engineering) reflects that data engineering roles have more ambiguous
-skill boundaries: ``dbt'' and ``data modelling'' skills are semantically closer to
-multiple adjacent skills, causing occasional reordering in marginal cases. Future
-work should explore JD-domain-specific similarity thresholds.
-
-\subsection{Pool Calibration Impact}
-
-Fig.~\ref{fig:calibration} compares score distributions before (Phase 3 raw) and
-after (Phase 4 calibrated) pool calibration for $\text{JD}_1$. Phase 3 raw scores
-clustered between 70 and 85 with a standard deviation of 4.7; Phase 4 calibrated
-scores spread to 58–92 with SD = 9.3. The pool calibrator resolved 3 borderline
-pairs per run on average, providing explicit comparative reasoning for each
-reordering. The mean absolute delta (calibrated $-$ raw) was 4.1 points, with
-2.3 rank changes per run on average.
-
-This result confirms \textbf{G4}: independent scoring (Phase 3 alone) systematically
-underutilises the score range, making it impossible to distinguish candidates in
-the 70–85 band. The pool-aware calibration step provides the discriminative spread
-required for reliable shortlisting.
-
-\begin{figure}[!t]
-\centering
-\begin{tikzpicture}
-\begin{scope}[xshift=0cm]
-  % Simplified score distribution visualisation
-  \draw[->] (0,0) -- (5.5,0) node[right, font=\scriptsize] {Score};
-  \draw[->] (0,0) -- (0,3.0) node[above, font=\scriptsize] {Density};
-  % Raw scores distribution (narrow, high peak)
-  \draw[thick, blue, fill=blue!20, opacity=0.5]
-    (1.5,0) -- (1.5,0.3) -- (2.0,1.2) -- (2.5,2.4) -- (3.0,2.8) --
-    (3.5,2.4) -- (4.0,1.0) -- (4.3,0.2) -- (4.3,0) -- cycle;
-  % Calibrated distribution (wider, lower peak)
-  \draw[thick, red, fill=red!20, opacity=0.5, dashed]
-    (0.5,0) -- (0.5,0.2) -- (1.2,0.8) -- (2.0,1.6) -- (2.8,1.9) --
-    (3.5,1.5) -- (4.2,0.7) -- (5.0,0.1) -- (5.0,0) -- cycle;
-  % Labels
-  \node[font=\scriptsize, blue] at (2.9,2.5) {Raw (SD=4.7)};
-  \node[font=\scriptsize, red] at (3.8,1.6) {Calibrated (SD=9.3)};
-  % X-axis labels
-  \foreach \x/\label in {0.5/58,1.5/66,2.5/74,3.5/82,4.5/90}
-    \node[font=\tiny] at (\x,-0.2) {\label};
-\end{scope}
-\end{tikzpicture}
-\caption{Score distributions before (Phase 3 raw, blue) and after (Phase 4
-calibrated, red, dashed) pool calibration for $\text{JD}_1$. Calibration spreads
-scores from a narrow 70–85 band (SD=4.7) to a discriminative 58–92 range
-(SD=9.3).}
-\label{fig:calibration}
-\end{figure}
-
-\subsection{Ablation Summary}
-
-Table~\ref{tab:ablation} summarises the incremental contribution of each
-EvidenceRank component.
-
-\begin{table}[!t]
-\caption{Ablation Study: Contribution of Each Pipeline Component}
-\label{tab:ablation}
-\centering
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Configuration} & \textbf{Pearson $r$} & \textbf{$H$ (\%)} & \textbf{$\tau$} & \textbf{Calls} \\
-\midrule
-Single LLM (B2)                  & 0.643 & 24.1 & 0.701 & 12 \\
-+ Multi-Agent                    & 0.769 & 21.6 & 0.741 & 37 \\
-+ Evidence Chain                 & 0.783 & 14.8 & 0.798 & 37 \\
-+ Pool Calibration               & 0.795 & 14.8 & 0.811 & 38 \\
-+ Self-Doc RAG (ChromaDB)        & 0.801 & 10.2 & 0.831 & 39 \\
-+ Skill Pre-Filter (\textbf{Full}) & \textbf{0.812} & \textbf{7.3} & \textbf{0.847} & \textbf{30} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Each component contributes positively and cumulatively. Evidence-chain grounding
-is the single largest contributor to hallucination reduction (21.6\% $\to$
-14.8\%). Self-document RAG adds the largest absolute improvement in correlation
-($+0.018$ Pearson $r$). The skill pre-filter uniquely reduces compute cost while
-maintaining Recall@3 = 1.000. Pool calibration contributes to ranking stability
-($+0.013$ Kendall's $\tau$).
-
-\subsection{Comparison with Related Work}
-
-Table~\ref{tab:comparison} positions EvidenceRank against directly comparable
-published approaches.
-
-\begin{table}[!t]
-\caption{Comparison with Related LLM-Based Recruitment Systems}
-\label{tab:comparison}
-\centering
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{p{2.8cm}ccccc}
-\toprule
-\textbf{Method} & \textbf{Corr.} & \textbf{Halluc.} & \textbf{Pool Cal.} & \textbf{RAG} & \textbf{Consist.} \\
-\midrule
-Chowdhury et al.~\cite{chowdhury2026}
-  & $r$=0.896 & \ding{55} & \ding{55} & \ding{55} & \ding{55} \\
-Hoque et al.~\cite{hoque2026}
-  & 91\% acc. & \ding{55} & \ding{55} & \ding{55} & \ding{55} \\
-Tran \& Tran~\cite{tran2025}
-  & 0.827 sim. & \ding{55} & \ding{55} & Ext. & \ding{55} \\
-Lo et al.~\cite{lo2025}
-  & --- & \ding{55} & \ding{55} & Ext. & \ding{55} \\
-\textbf{EvidenceRank}
-  & $r$=\textbf{0.812} & \ding{51} & \ding{51} & Self & \ding{51} \\
-\bottomrule
-\end{tabular}%
-\begin{tablenotes}\small
-  \item Corr.=human expert correlation metric; Halluc.=hallucination detection;
-  Pool Cal.=pool-level calibration; RAG type: Ext.=external KB, Self=self-document;
-  Consist.=ranking stability measurement. \ding{51} = present, \ding{55} = absent.
-  Chowdhury et al.\ evaluate on a different scale (MAE/Pearson on HR-annotated
-  multi-domain dataset), not directly comparable to our IT-specific pilot.
-\end{tablenotes}
-\label{tab:comparison}
-\end{table}
-
-The correlation metric of Chowdhury et al.\ ($r = 0.896$) exceeds ours
-($r = 0.812$), but that comparison is not directly valid: their system uses
-fine-tuned domain-specialist LLMs on a six-category professionally annotated
-benchmark, whereas EvidenceRank uses zero-shot prompting on locally-served
-quantised models. EvidenceRank's key differentiation is the simultaneous presence
-of hallucination detection, pool calibration, self-document RAG, and consistency
-measurement—none of which are present in any single competing system.
+%% TODO: Write narrative after results are available.
 
 \subsection{Limitations}
 
-Our pilot evaluation uses 12 CVs and 2 JDs, which limits statistical power.
-The ground truth relies on three human annotators (Krippendorff's $\alpha = 0.71$),
-introducing subjectivity. Locally-served quantised models perform below cloud API
-equivalents in raw accuracy, as evidenced by Chowdhury et al.\ \cite{chowdhury2026}
-showing Claude Sonnet 4.5 (MAE = 0.097) outperforms smaller open-source models.
-The hallucination checker itself depends on MiniLM cosine similarity, which may
-classify semantically accurate paraphrases as fabricated (false positives).
+The evaluation currently lacks human-annotated ground truth, which limits the
+ability to report absolute accuracy metrics (Pearson $r$, Recall@N). All reported
+metrics are internal to the pipeline or cross-method comparisons. The planned
+experiment on %% TODO: N CVs $\times$ 2 JDs will provide more statistical power
+once data collection is complete. Locally-served quantised models perform below
+cloud API equivalents in raw accuracy, as evidenced by prior work showing
+Claude Sonnet 4.5 outperforming smaller open-source models \cite{chowdhury2026}.
+The hallucination checker depends on MiniLM cosine similarity, which may classify
+semantically accurate paraphrases as fabricated.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
@@ -874,11 +739,11 @@ tracking pipeline.
 
 We presented EvidenceRank, a four-phase multi-agent LLM pipeline for IT candidate
 ranking that simultaneously addresses hallucination, pool-blind scoring, and
-ranking instability—three critical gaps unresolved by existing literature. The
-system achieves Pearson $r = 0.812$ with human expert rankings, reduces
-hallucination from 24.1\% (single LLM) to 7.3\%, achieves near-human ranking
-stability (Kendall's $\tau = 0.847$, SD = 0.032), and reduces LLM invocations
-by 23\% via semantic skill pre-filtering while maintaining Recall@3 = 1.000.
+ranking instability—three critical gaps unresolved by existing literature.
+%% TODO: Insert quantitative summary after running the experiment.
+The architecture integrates self-document RAG, evidence-chain grounding,
+semantic skill pre-filtering, and pool-aware calibration—each isolatable via the
+built-in ablation study runner.
 
 The key insight is that hallucination in LLM assessment pipelines is not solely an
 intrinsic model deficiency but an architectural one: by providing focused
@@ -929,8 +794,7 @@ for responsible deployment in high-stakes hiring decisions.
 %% ─────────────────────────────────────────────────────────────────────────────
 \section*{Acknowledgement}
 
-The authors thank the participating HR professionals for ground-truth annotation
-and the university career services office for anonymised CV provision.
+%% TODO: Add acknowledgements after data collection and experiment completion.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
