@@ -135,6 +135,7 @@ def _filter_by_required_skills(
     skill_matcher: SkillMatcher | None,
 ) -> tuple[list[CandidateProfile], list[str]]:
     # Returns (passing_profiles, eliminated_candidate_ids)
+    # Uses jd.required_skills only (not preferred_skills) — filter is strict-required only
     # A candidate passes if any required JD skill has score >= config.SKILL_MATCH_THRESHOLD
     # If skill_matcher is None: all candidates pass (no filtering)
 ```
