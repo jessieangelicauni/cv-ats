@@ -219,8 +219,7 @@ def main(
 
         if ablation:
             console.print("[blue]Running ablation study (this will make additional LLM calls)...[/blue]")
-            cv_text_map_ab = {c["candidate_id"]: c["raw_text"] for c in cv_raws}
-            ablation_results = run_ablation(jd_text, cv_raws, state, cv_text_map_ab)
+            ablation_results = run_ablation(jd_text, cv_raws, state, cv_text_map)
 
             ab_table = Table(title="Ablation Study")
             ab_table.add_column("Variant")

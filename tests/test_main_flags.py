@@ -186,3 +186,24 @@ def test_neither_flag_does_not_call_baselines_or_ablation(tmp_path):
     assert result.exit_code == 0, result.output
     mock_bl.assert_not_called()
     mock_ab.assert_not_called()
+
+
+def test_both_flags_call_both_functions(tmp_path):
+    with patch("main.run_baselines", return_value=_baseline_results()) as mock_bl, \
+         patch("main.run_ablation", return_value=_ablation_results()) as mock_ab, \
+         patch("main._load_cvs", return_value=[{"candidate_id": "cand_a", "raw_text": "x", "extraction_status": "ok"}]), \
+         patch("main.run_pipeline", return_value=_make_state()), \
+         patch("main.generate_report"), \
+         patch("main.setup_telemetry"), \
+         patch("main.shutdown"), \
+         patch("main.get_langfuse", return_value=MagicMock()), \
+         patch("main.get_tracer", return_value=MagicMock()):
+        jd_file = tmp_path / "jd.txt"; jd_file.write_text("role")
+        (tmp_path / "cvs").mkdir()
+        result = runner.invoke(app, [
+            "--jd", str(jd_file), "--cv-dir", str(tmp_path / "cvs"),
+            "--output", str(tmp_path / "out"), "--baselines", "--ablation",
+        ])
+    assert result.exit_code == 0, result.output
+    mock_bl.assert_called_once()
+    mock_ab.assert_called_once()
