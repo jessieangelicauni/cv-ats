@@ -1,31 +1,16 @@
 from __future__ import annotations
 import hashlib
+import time
 import uuid
 from typing import Callable
-from langgraph.graph import StateGraph, START, END
 from src.graph.state import ATSState
 from src.graph.nodes import (
-    phase1_jd_parser, phase2_cv_extractor, phase3_signal_enricher,
-    phase4_candidate_judge, phase5_pool_calibrator,
+    phase1_jd_parser, phase2_cv_extractor,
+    phase3_candidate_judge, phase4_pool_calibrator,
 )
+from src.utils.cache import ExtractionCache
 from src.utils.telemetry import setup_telemetry, get_tracer, current_otel_trace_id
 import config
-
-
-def build_pipeline() -> StateGraph:
-    builder = StateGraph(ATSState)
-    builder.add_node("phase1", phase1_jd_parser)
-    builder.add_node("phase2", phase2_cv_extractor)
-    builder.add_node("phase3", phase3_signal_enricher)
-    builder.add_node("phase4", phase4_candidate_judge)
-    builder.add_node("phase5", phase5_pool_calibrator)
-    builder.add_edge(START, "phase1")
-    builder.add_edge("phase1", "phase2")
-    builder.add_edge("phase2", "phase3")
-    builder.add_edge("phase3", "phase4")
-    builder.add_edge("phase4", "phase5")
-    builder.add_edge("phase5", END)
-    return builder.compile()
 
 
 def run_pipeline(
@@ -36,18 +21,10 @@ def run_pipeline(
     session_id: str | None = None,
     on_phase_complete: Callable[[dict], None] | None = None,
 ) -> ATSState:
-    """
-    session_id: shared across multiple run_pipeline() calls (e.g. consistency
-    experiments) so Langfuse groups them as one session for side-by-side comparison.
-
-    on_phase_complete: called with each trace_log entry (e.g. {"phase": 1,
-    "duration_s": 2.1}) as soon as that phase finishes, so callers (e.g. the CLI's
-    progress spinner) can report real progress instead of a static label.
-    """
     setup_telemetry()
-
     run_id = run_id or str(uuid.uuid4())[:8]
     jd_hash = hashlib.sha256(jd_raw.encode()).hexdigest()[:12]
+    cache = ExtractionCache(config.CACHE_DB_PATH) if use_cache else None
 
     tracer = get_tracer()
     with tracer.start_as_current_span(
@@ -61,32 +38,33 @@ def run_pipeline(
             "llm.large_model": config.LARGE_MODEL,
         },
     ):
-        # Capture the OTel trace_id while we are inside the root span.
-        # This is the ID Langfuse uses for this trace — needed for post-run scoring.
         otel_trace_id = current_otel_trace_id()
+        trace_log: list[dict] = []
 
-        graph = build_pipeline()
-        initial_state = ATSState(
+        def _run_phase(n: int, fn, *args, **extra_log):
+            t0 = time.time()
+            result = fn(*args)
+            entry = {"phase": n, "duration_s": round(time.time() - t0, 2), **extra_log}
+            trace_log.append(entry)
+            if on_phase_complete:
+                on_phase_complete(entry)
+            return result
+
+        jd_structured = _run_phase(1, phase1_jd_parser, jd_raw, cache)
+        cv_profiles   = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
+                                   candidates=len(cv_raws))
+        assessments   = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured)
+        final_ranking = _run_phase(4, phase4_pool_calibrator, assessments, jd_structured)
+
+        return ATSState(
             jd_raw=jd_raw,
             cv_raws=cv_raws,
-            jd_structured=None,
-            cv_profiles=[],
-            candidate_assessments=[],
-            final_ranking=None,
+            jd_structured=jd_structured,
+            cv_profiles=cv_profiles,
+            candidate_assessments=assessments,
+            final_ranking=final_ranking,
             run_id=run_id,
             otel_trace_id=otel_trace_id,
-            trace_log=[],
-            hallucination_flags=[],
+            trace_log=trace_log,
             use_cache=use_cache,
         )
-
-        final_state = initial_state
-        seen_log_len = 0
-        for state in graph.stream(initial_state, stream_mode="values"):
-            # LangGraph returns dicts, not ATSState objects, so convert back
-            final_state = ATSState(**state)
-            log = final_state.trace_log
-            if on_phase_complete and len(log) > seen_log_len:
-                on_phase_complete(log[-1])
-                seen_log_len = len(log)
-        return final_state

@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "LLM-powered ATS for IT candidate ranking — Q1 Scopus research"
 requires-python = ">=3.11"
 dependencies = [
-    "langgraph>=1.2.9",
     "langchain>=1.3.13",
     "langchain-core>=1.4.9",
     "langchain-ollama>=1.1.0",
