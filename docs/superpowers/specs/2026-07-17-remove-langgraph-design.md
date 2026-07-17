@@ -84,7 +84,7 @@ return ATSState(jd_raw=jd_raw, cv_raws=cv_raws, jd_structured=jd_structured,
 
 All LangGraph imports are removed. The public signature of `run_pipeline()` is unchanged.
 
-### 6. `main.py` — attribute access
+### 6. `main.py` — attribute access and phase label update
 
 All dict-style state access is updated to attribute access:
 
@@ -96,6 +96,17 @@ All dict-style state access is updated to attribute access:
 | `state["candidate_assessments"]` | `state.candidate_assessments` |
 | `state["otel_trace_id"]` | `state.otel_trace_id` |
 | `state["hallucination_flags"] = all_flags` | `state.hallucination_flags = all_flags` |
+
+The `phase_labels` dict (used to drive the CLI progress spinner) is updated from 5 entries to 4, with Phase 3 relabelled from "Enriching candidate signals..." to "Judging candidates..." and Phase 4 from "Judging candidates..." to "Calibrating final ranking...":
+
+```python
+phase_labels = {
+    1: "[Phase 1] Parsing job description...",
+    2: "[Phase 2] Extracting CV profiles...",
+    3: "[Phase 3] Judging candidates...",
+    4: "[Phase 4] Calibrating final ranking...",
+}
+```
 
 ### 7. `src/output/report_generator.py` — remove enriched profile usage
 
