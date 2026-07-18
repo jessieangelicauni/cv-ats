@@ -302,34 +302,12 @@ A SHA-256 hash of the raw JD text is computed and stored as \texttt{raw\_jd\_has
 to enable cache invalidation when the JD changes. Extraction results are persisted
 in a SQLite cache (\texttt{ExtractionCache}) keyed on the content hash.
 
-\subsection{Phase 2: RAG-Augmented CV Extraction}
+\subsection{Phase 2: Structured CV Extraction}
 \label{subsec:phase2}
 
-Phase 2 introduces self-document retrieval-augmented generation. Each candidate
-CV undergoes two operations before LLM extraction:
-
-\textbf{Indexing.} The raw CV text is split into paragraphs using the regex
-pattern \verb|r'\n\s*\n'| (blank-line boundaries), yielding semantically
-coherent chunks. Chunks shorter than 10 characters are discarded. Each chunk is
-encoded with all-MiniLM-L6-v2 and stored in a ChromaDB \texttt{PersistentClient}
-collection keyed by \texttt{candidate\_id}. Cache invalidation uses the first 12
-hexadecimal characters of the SHA-256 hash of the raw text: if the stored hash
-matches, indexing is skipped.
-
-\textbf{Focused retrieval.} Three queries are executed against the ChromaDB
-collection for each candidate:
-\begin{align}
-  q_1 &= \textit{``work experience roles achievements''} \notag \\
-  q_2 &= \textit{``technical skills programming languages frameworks''} \notag \\
-  q_3 &= \textit{``education degree certifications''} \notag
-\end{align}
-The top-$K$ (default $K=5$) chunks per query are retrieved using embedded cosine
-similarity, deduplicated, and concatenated as a focused CV text that replaces the
-raw full document for extraction. This ensures the LLM extractor receives
-structured, section-relevant content rather than noisy full-document text.
-
-The extraction itself uses two sequential LLM calls. The first (\texttt{SYSTEM\_2A})
-extracts a structured \texttt{CandidateProfile} with strict verbatim quoting:
+Phase 2 extracts structured candidate data from each raw CV text through two
+sequential LLM calls. The first (\texttt{SYSTEM\_2A}) extracts a structured
+\texttt{CandidateProfile} with strict verbatim quoting:
 achievement strings must be exact quotes from the CV, tenure months computed
 precisely from dates, and skill names recorded as-is without inference. The second
 call (\texttt{SYSTEM\_2B}) normalises raw skill mentions to canonical forms (e.g.,
@@ -339,28 +317,25 @@ call (\texttt{SYSTEM\_2B}) normalises raw skill mentions to canonical forms (e.g
 \subsection{Semantic Skill Pre-Filter}
 \label{subsec:prefilter}
 
-Between Phase 2 and Phase 3, a pre-judge filter eliminates candidates who match
-no required skill above a cosine similarity threshold $\theta$ (default 0.75).
+Between Phase 2 and Phase 3, a pre-judge filter eliminates candidates who share
+no required skill name with the JD after LLM-based normalisation.
 
-Let $\mathcal{R} = \{r_1, \ldots, r_m\}$ be the required skills from the JD, and
-$\mathcal{C}_i = \{s_1, \ldots, s_n\}$ the canonical skills from candidate $i$.
-For each required skill $r_j$, the best candidate skill match score is:
+Both the JD skill names (Phase 1) and CV skill names (Phase 2B) are normalised
+to canonical forms by the same LLM prompt before the filter runs—so ``k8s'' and
+``Kubernetes'' converge to the same string. The filter then computes the set
+intersection:
 \begin{equation}
-  \text{score}(r_j, \mathcal{C}_i) = \max_{s_k \in \mathcal{C}_i}
-    \cos\bigl(\mathbf{e}_{r_j},\; \mathbf{e}_{s_k}\bigr)
-  \label{eq:skill_score}
-\end{equation}
-where $\mathbf{e}_{r_j}$ and $\mathbf{e}_{s_k}$ are all-MiniLM-L6-v2 embeddings
-of the skill name strings. Candidate $i$ is \emph{eliminated} if:
-\begin{equation}
-  \forall r_j \in \mathcal{R}:\; \text{score}(r_j, \mathcal{C}_i) < \theta
+  \mathcal{R} \cap \mathcal{C}_i \neq \emptyset
   \label{eq:filter}
 \end{equation}
-That is, a candidate passes if at least \emph{one} required skill exceeds the
-threshold. This conservative filter avoids false negatives: only candidates with
-zero required-skill overlap are removed. Eliminated candidates are recorded in
-\texttt{ATSState.eliminated\_candidates} and appear in the final report under a
-``Filtered Candidates'' section.
+where $\mathcal{R} = \{r_1, \ldots, r_m\}$ is the set of required skill names
+from the JD and $\mathcal{C}_i = \{s_1, \ldots, s_n\}$ is the set of canonical
+skill names extracted from candidate $i$'s CV. A candidate is \emph{eliminated}
+if the intersection is empty—that is, they share no required skill name after
+normalisation. This conservative filter avoids false negatives: only candidates
+with zero required-skill overlap are removed. Eliminated candidates are recorded
+in \texttt{ATSState.eliminated\_candidates} and appear in the final report under
+a ``Filtered Candidates'' section.
 
 \subsection{Phase 3: Evidence-Grounded Candidate Judging}
 \label{subsec:phase3}
@@ -371,10 +346,8 @@ senior technical recruiter. The phase receives three inputs:
 
 \begin{enumerate}
   \item The structured \texttt{CandidateProfile} from Phase 2 (JSON).
-  \item \textbf{Relevant CV excerpts}: top-$K$ ChromaDB chunks retrieved using
-        the serialised \texttt{JDRequirements} as the query embedding.
   \item \textbf{Skill coverage table}: a Markdown table of all JD skills with
-        their best candidate match and cosine similarity score.
+        their best candidate match and exact-match score.
 \end{enumerate}
 
 The prompt enforces the \textbf{Evidence Rule}: every item in
