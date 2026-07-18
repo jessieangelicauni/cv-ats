@@ -223,13 +223,9 @@ Drawing from the above survey, we identify five concrete gaps:
 assessment claims against source text post-generation \cite{chowdhury2026,
 jahan2026, hoque2026}.
 
-\textbf{G2 — Self-document retrieval blind spot:} RAG is applied to external
-corpora, not the candidate's own document at paragraph granularity
-\cite{tran2025, lo2025}.
-
 \textbf{G3 — Coarse-grained skill matching:} Skill alignment uses full-document
-similarity or rigid ontologies; no paper applies targeted per-skill cosine
-similarity as a binary pre-filter \cite{alonso2025, ajjam2026}.
+similarity or rigid ontologies; no paper applies LLM-normalised exact canonical
+name matching as a targeted per-skill pre-filter \cite{alonso2025, ajjam2026}.
 
 \textbf{G4 — Pool-blind scoring:} Individual candidate scores are assigned without
 comparative pool awareness or borderline resolution \cite{hoque2026,
@@ -239,7 +235,7 @@ chowdhury2026}.
 ranking stability (e.g., Kendall's $\tau$) to assess LLM non-determinism impact
 on operational reliability.
 
-EvidenceRank directly addresses all five gaps.
+EvidenceRank directly addresses all remaining gaps.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
