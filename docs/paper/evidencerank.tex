@@ -586,15 +586,14 @@ tracking pipeline.
 We presented EvidenceRank, a four-phase multi-agent LLM pipeline for IT candidate
 ranking that simultaneously addresses hallucination, pool-blind scoring, and
 ranking instability—three critical gaps unresolved by existing literature.
-%% TODO: Insert quantitative summary after running the experiment.
 The architecture integrates self-document RAG, evidence-chain grounding,
 semantic skill pre-filtering, and pool-aware calibration.
 
 The key insight is that hallucination in LLM assessment pipelines is not solely an
 intrinsic model deficiency but an architectural one: by providing focused
 self-document context (RAG), enforcing verbatim evidence citation, and verifying
-claims post-generation, the fabrication rate is reduced nearly three-fold without
-model fine-tuning.
+claims post-generation, the fabrication rate is reduced by grounding each claim in focused
+self-document context rather than relying on the model's parametric memory.
 
 \textbf{Future work} directions include:
 
@@ -638,8 +637,6 @@ for responsible deployment in high-stakes hiring decisions.
 
 %% ─────────────────────────────────────────────────────────────────────────────
 \section*{Acknowledgement}
-
-%% TODO: Add acknowledgements after data collection and experiment completion.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
