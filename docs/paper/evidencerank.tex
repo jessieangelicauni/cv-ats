@@ -529,42 +529,9 @@ This will yield %% TODO: N $\times$ 2 evaluation instances.
 \subsection{Evaluation Protocol}
 
 As no human-annotated ground truth is currently available, we assess ranking
-quality through internal cross-method agreement (Kendall's $\tau$ between
-EvidenceRank and each baseline), hallucination rate, score distribution spread,
-and run-to-run consistency. These metrics are computed automatically from pipeline
-outputs without requiring external annotation.
-
-%% TODO: Replace with final baseline descriptions after running the experiment.
-\subsection{Baselines}
-
-We compare EvidenceRank against two non-LLM baselines:
-
-\begin{enumerate}
-  \item \textbf{TF-IDF + Cosine (B1)}: TF-IDF vectorisation of CV and JD texts,
-        ranked by cosine similarity. No LLM involved. Represents the conventional
-        keyword-based ATS approach.
-  \item \textbf{Keyword Heuristic (B2)}: Count of JD keyword matches (non-stopword
-        terms) in each CV, ranked by descending match count.
-\end{enumerate}
-
-\subsection{Ablation Study Design}
-
-We evaluate four pipeline variants by disabling one component at a time:
-
-\begin{enumerate}
-  \item \textbf{No RAG} (\texttt{use\_vector\_store=False}): CV extractor receives
-        full raw text; judge receives no focused context chunks. Isolates the
-        contribution of self-document RAG.
-  \item \textbf{No Evidence Grounding} (\texttt{use\_evidence\_grounding=False}):
-        Judge uses a prompt without the verbatim-citation requirement. Isolates the
-        contribution of the evidence-chain constraint to hallucination reduction.
-  \item \textbf{No Skill Filter} (\texttt{use\_skill\_filter=False}): All candidates
-        proceed to Phase 3 regardless of skill coverage score. Measures LLM call
-        savings from the semantic pre-filter.
-  \item \textbf{No Calibration} (\texttt{use\_pool\_calibration=False}): Phase 3 raw
-        scores are sorted directly into the final ranking; Phase 4 is skipped.
-        Assesses whether pool-aware calibration meaningfully shifts rankings.
-\end{enumerate}
+quality through hallucination rate, score distribution spread, and run-to-run
+consistency. These metrics are computed automatically from pipeline outputs without
+requiring external annotation.
 
 \subsection{Evaluation Metrics}
 
@@ -574,11 +541,8 @@ We evaluate four pipeline variants by disabling one component at a time:
         MiniLM cosine checker.
   \item \textbf{Score standard deviation}: Spread of calibrated scores across
         candidates, indicating discriminative power.
-  \item \textbf{LLM invocation count}: Total LLM calls per evaluation instance,
-        measuring compute efficiency.
-  \item \textbf{Kendall's $\tau$}: Pairwise rank correlation between EvidenceRank
-        and each baseline/ablation variant; and across repeated pipeline runs for
-        consistency measurement.
+  \item \textbf{Kendall's $\tau$}: Pairwise rank correlation across repeated
+        pipeline runs, measuring ranking consistency.
 \end{enumerate}
 
 \subsection{Implementation Details}
@@ -595,34 +559,13 @@ tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
 \label{sec:results}
 
 %% TODO: Replace all placeholder tables and narrative with actual results after running
-%% TODO: the experiment (uv run python main.py --baselines --ablation --eval).
-
-\subsection{Baseline Comparison}
-
-%% TODO: Insert actual results table after running --baselines.
-\begin{table}[!t]
-\caption{Baseline Comparison — Kendall's $\tau$ vs.\ EvidenceRank}
-\label{tab:baselines}
-\centering
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Method} & \textbf{$\tau$ vs.\ EvidenceRank} & \textbf{Score Std} \\
-\midrule
-B1: TF-IDF Cosine    & \textit{TBD} & \textit{TBD} \\
-B2: Keyword Heuristic & \textit{TBD} & \textit{TBD} \\
-\textbf{EvidenceRank} & 1.000        & \textit{TBD} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-%% TODO: Write narrative after results are available.
+%% TODO: the experiment (uv run python main.py --eval).
 
 \subsection{Hallucination Analysis}
 
 %% TODO: Insert actual hallucination breakdown table after running --eval.
 \begin{table}[!t]
-\caption{Hallucination Rate by Configuration}
+\caption{Hallucination Rate — EvidenceRank}
 \label{tab:hallucination}
 \centering
 \renewcommand{\arraystretch}{1.2}
@@ -630,32 +573,7 @@ B2: Keyword Heuristic & \textit{TBD} & \textit{TBD} \\
 \toprule
 \textbf{Configuration} & \textbf{Hallucination Rate $H$ (\%)} \\
 \midrule
-Full EvidenceRank          & \textit{TBD} \\
-No Evidence Grounding      & \textit{TBD} \\
-No RAG                     & \textit{TBD} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-%% TODO: Write narrative after results are available.
-
-\subsection{Ablation Study}
-
-%% TODO: Insert actual ablation table after running --ablation.
-\begin{table}[!t]
-\caption{Ablation Study: Contribution of Each Pipeline Component}
-\label{tab:ablation}
-\centering
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Configuration} & \textbf{$H$ (\%)} & \textbf{Score Std} & \textbf{$\tau$ vs Full} & \textbf{LLM Calls} \\
-\midrule
-Full EvidenceRank       & \textit{TBD} & \textit{TBD} & 1.000        & \textit{TBD} \\
-No RAG                  & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
-No Evidence Grounding   & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
-No Skill Filter         & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
-No Calibration          & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
+EvidenceRank & \textit{TBD} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -742,8 +660,7 @@ ranking that simultaneously addresses hallucination, pool-blind scoring, and
 ranking instability—three critical gaps unresolved by existing literature.
 %% TODO: Insert quantitative summary after running the experiment.
 The architecture integrates self-document RAG, evidence-chain grounding,
-semantic skill pre-filtering, and pool-aware calibration—each isolatable via the
-built-in ablation study runner.
+semantic skill pre-filtering, and pool-aware calibration.
 
 The key insight is that hallucination in LLM assessment pipelines is not solely an
 intrinsic model deficiency but an architectural one: by providing focused
