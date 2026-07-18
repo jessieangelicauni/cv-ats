@@ -46,11 +46,11 @@ repeated LLM calls has not been systematically quantified. We present
 addresses all three limitations simultaneously for IT recruitment. The system
 introduces (1) a \emph{retrieval-augmented assessment} mechanism that indexes
 candidate CV text into ChromaDB as paragraph-level chunks and retrieves focused
-context for each evaluation dimension; (2) an \emph{evidence-chain grounding}
+context using the job requirements as the retrieval query; (2) an \emph{evidence-chain grounding}
 constraint requiring every dimension score to cite a verbatim text quote, backed by
 post-hoc semantic verification using all-MiniLM-L6-v2; (3) a \emph{semantic skill
-pre-filter} that eliminates candidates lacking required-skill matches through cosine
-similarity before expensive LLM judging; and (4) a \emph{pool-aware holistic
+pre-filter} that eliminates candidates lacking required-skill matches through exact
+canonical name matching after LLM-based skill normalisation, before expensive LLM judging; and (4) a \emph{pool-aware holistic
 calibration} phase that resolves borderline pairs through comparative reasoning.
 \end{abstract}
 
