@@ -133,8 +133,7 @@ To address these three problems, we make the following contributions:
 The remainder of the paper is structured as follows. Section~\ref{sec:related}
 reviews related work and identifies research gaps. Section~\ref{sec:system}
 describes the EvidenceRank architecture. Section~\ref{sec:experiment} presents
-the experimental design. Section~\ref{sec:results} reports results and discussion.
-Section~\ref{sec:conclusion} concludes with future work directions.
+the experimental design. Section~\ref{sec:conclusion} concludes with future work directions.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
@@ -547,65 +546,6 @@ validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-mo
 tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
 %% TODO: Report actual hardware and runtime after running experiments.
 
-%% ─────────────────────────────────────────────────────────────────────────────
-\section{Results and Discussion}
-\label{sec:results}
-
-%% TODO: Replace all placeholder tables and narrative with actual results after running
-%% TODO: the experiment (uv run python main.py --eval).
-
-\subsection{Hallucination Analysis}
-
-%% TODO: Insert actual hallucination breakdown table after running --eval.
-\begin{table}[!t]
-\caption{Hallucination Rate — EvidenceRank}
-\label{tab:hallucination}
-\centering
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lc}
-\toprule
-\textbf{Configuration} & \textbf{Hallucination Rate $H$ (\%)} \\
-\midrule
-EvidenceRank & \textit{TBD} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-%% TODO: Write narrative after results are available.
-
-\subsection{Ranking Stability}
-
-%% TODO: Insert actual Kendall's tau consistency table after running --runs 3.
-\begin{table}[!t]
-\caption{Ranking Stability Across Three Repeated Runs (Kendall's $\tau$)}
-\label{tab:consistency}
-\centering
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lcccc}
-\toprule
- & \textbf{Run 1 vs 2} & \textbf{Run 1 vs 3} & \textbf{Run 2 vs 3} & \textbf{Mean $\tau$} \\
-\midrule
-$\text{JD}_1$ & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
-$\text{JD}_2$ & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
-\midrule
-\textbf{Overall} & \textit{TBD} & \textit{TBD} & \textit{TBD} & \textit{TBD} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-%% TODO: Write narrative after results are available.
-
-\subsection{Limitations}
-
-The evaluation currently lacks human-annotated ground truth, which limits the
-ability to report absolute accuracy metrics (Pearson $r$, Recall@N). All reported
-metrics are internal to the pipeline or cross-method comparisons. The planned
-experiment on %% TODO: N CVs $\times$ 2 JDs will provide more statistical power
-once data collection is complete. Locally-served quantised models perform below
-cloud API equivalents in raw accuracy, as evidenced by prior work showing
-Claude Sonnet 4.5 outperforming smaller open-source models \cite{chowdhury2026}.
-The hallucination checker depends on MiniLM cosine similarity, which may classify
-semantically accurate paraphrases as fabricated.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
