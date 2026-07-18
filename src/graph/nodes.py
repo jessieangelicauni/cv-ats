@@ -8,7 +8,6 @@ from src.agents.cv_extractor import CVExtractorAgent
 from src.agents.candidate_judge import CandidateJudgeAgent
 from src.agents.pool_calibrator import PoolCalibratorAgent
 from src.utils.cache import ExtractionCache
-from src.utils.vector_store import CVVectorStore
 
 
 def phase1_jd_parser(jd_raw: str, cache: ExtractionCache | None) -> JDRequirements:
@@ -18,11 +17,8 @@ def phase1_jd_parser(jd_raw: str, cache: ExtractionCache | None) -> JDRequiremen
 def phase2_cv_extractor(
     cv_raws: list[dict],
     cache: ExtractionCache | None,
-    vector_store: CVVectorStore | None,
 ) -> list[CandidateProfile]:
     def process(cv_raw: dict) -> CandidateProfile:
-        if vector_store is not None:
-            vector_store.index_cv(cv_raw["candidate_id"], cv_raw["raw_text"])
         return CVExtractorAgent(cache=cache).run(cv_raw)
     return [process(cv_raw) for cv_raw in cv_raws]
 
@@ -30,17 +26,8 @@ def phase2_cv_extractor(
 def phase3_candidate_judge(
     profiles: list[CandidateProfile],
     jd: JDRequirements,
-    vector_store: CVVectorStore | None,
 ) -> list[CandidateAssessment]:
-    jd_text = jd.model_dump_json()
-
     def process(profile: CandidateProfile) -> CandidateAssessment:
-        context_chunks: list[str] = []
-        if vector_store is not None:
-            context_chunks = vector_store.retrieve(
-                profile.candidate_id, jd_text,
-                top_k=10,
-            )
         candidate_names = {s.canonical_skill for s in profile.skills}
         skill_matches = [
             SkillMatchResult(
@@ -52,7 +39,7 @@ def phase3_candidate_judge(
             for s in jd.required_skills + jd.preferred_skills
         ]
         return CandidateJudgeAgent().run(
-            profile, jd, context_chunks or None, skill_matches or None
+            profile, jd, skill_matches=skill_matches or None
         )
 
     return [process(profile) for profile in profiles]
