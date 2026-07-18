@@ -12,10 +12,7 @@ from src.utils.cache import ExtractionCache
 from src.utils.vector_store import CVVectorStore
 from src.utils.skill_normalizer import normalize_skills
 from src.utils.telemetry import setup_telemetry, get_tracer, current_otel_trace_id
-from src.models.schemas import (
-    CandidateProfile, CandidateAssessment, JDRequirements,
-    FinalRanking, RankedCandidate, SkillMatchResult,
-)
+from src.models.schemas import CandidateProfile, JDRequirements
 import config
 
 
@@ -37,25 +34,6 @@ def _filter_by_required_skills(
     return passing, eliminated
 
 
-def _ranking_from_raw(assessments: list[CandidateAssessment]) -> FinalRanking:
-    sorted_a = sorted(assessments, key=lambda a: a.raw_score, reverse=True)
-    return FinalRanking(
-        ranked_candidates=[
-            RankedCandidate(
-                rank=i + 1,
-                candidate_id=a.candidate_id,
-                calibrated_score=a.raw_score,
-                delta_from_raw=0.0,
-                comparative_notes="",
-            )
-            for i, a in enumerate(sorted_a)
-        ],
-        pool_summary="No calibration applied.",
-        calibration_rationale="No calibration applied.",
-        borderline_pairs=[],
-    )
-
-
 def run_pipeline(
     jd_raw: str,
     cv_raws: list[dict],
@@ -63,18 +41,12 @@ def run_pipeline(
     use_cache: bool = True,
     session_id: str | None = None,
     on_phase_complete: Callable[[dict], None] | None = None,
-    use_vector_store: bool = True,
-    use_skill_filter: bool = True,
-    use_evidence_grounding: bool = True,
-    use_pool_calibration: bool = True,
 ) -> ATSState:
     setup_telemetry()
     run_id = run_id or str(uuid.uuid4())[:8]
     jd_hash = hashlib.sha256(jd_raw.encode()).hexdigest()[:12]
-    cache        = ExtractionCache(config.CACHE_DB_PATH)  if use_cache else None
-    vector_store = CVVectorStore(config.CHROMA_DB_PATH)   if use_cache else None
-
-    rag_store = vector_store if use_vector_store else None
+    cache        = ExtractionCache(config.CACHE_DB_PATH) if use_cache else None
+    vector_store = CVVectorStore(config.CHROMA_DB_PATH)  if use_cache else None
 
     tracer = get_tracer()
     with tracer.start_as_current_span(
@@ -112,24 +84,15 @@ def run_pipeline(
             for s in jd_structured.preferred_skills:
                 s.skill = jd_norm_map.get(s.skill, s.skill)
 
-        cv_profiles   = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
-                                   rag_store, candidates=len(cv_raws))
+        cv_profiles = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
+                                 vector_store, candidates=len(cv_raws))
 
-        if use_skill_filter:
-            cv_profiles, eliminated = _filter_by_required_skills(
-                cv_profiles, jd_structured)
-        else:
-            eliminated = []
+        cv_profiles, eliminated = _filter_by_required_skills(cv_profiles, jd_structured)
 
         assessments = _run_phase(3, phase3_candidate_judge, cv_profiles,
-                                 jd_structured, rag_store,
-                                 use_evidence_grounding)
+                                 jd_structured, vector_store)
 
-        if use_pool_calibration:
-            final_ranking = _run_phase(4, phase4_pool_calibrator,
-                                       assessments, jd_structured)
-        else:
-            final_ranking = _ranking_from_raw(assessments)
+        final_ranking = _run_phase(4, phase4_pool_calibrator, assessments, jd_structured)
 
         return ATSState(
             jd_raw=jd_raw,
