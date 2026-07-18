@@ -374,13 +374,20 @@ After Phase 3, every \texttt{evidence\_chain} item is verified by the
 \begin{enumerate}
   \item \textbf{Supported}: verbatim match found in the raw CV text
         (\texttt{quote in raw\_cv\_text}).
-  \item \textbf{Inferred}: not verbatim but semantically similar—cosine
-        similarity of all-MiniLM-L6-v2 embeddings of the quote and the full CV
-        text exceeds threshold $\phi$ (default 0.85):
+  \item \textbf{Inferred}: not verbatim but semantically grounded—the maximum
+        cosine similarity between the all-MiniLM-L6-v2 embedding of the quote
+        and any individual sentence in the CV text exceeds threshold $\phi$
+        (default 0.90):
         \begin{equation}
-          \cos\bigl(\mathbf{e}_{\text{quote}},\; \mathbf{e}_{\text{cv}}\bigr) > \phi
+          \max_{s_j \in \mathcal{S}(\text{cv})}
+            \cos\bigl(\mathbf{e}_{\text{quote}},\; \mathbf{e}_{s_j}\bigr) > \phi
           \label{eq:hallucination_threshold}
         \end{equation}
+        where $\mathcal{S}(\text{cv})$ is the set of sentences produced by
+        splitting the raw CV text on sentence-boundary punctuation and newlines.
+        Sentence-level comparison is used rather than a single full-document
+        vector because encoding a complete CV as one embedding produces a diffuse
+        representation that degrades cosine scores for short phrases.
   \item \textbf{Fabricated}: similarity below $\phi$; claim is not traceable to
         the source.
   \item \textbf{Acknowledged gap}: the LLM correctly set
@@ -399,8 +406,9 @@ correct behaviour). This metric is reported per run.
 \subsection{Phase 4: Pool-Aware Holistic Calibration}
 \label{subsec:phase4}
 
-Phase 4 receives all \texttt{CandidateAssessment} objects simultaneously and
-produces a \texttt{FinalRanking} with three constraints enforced by the prompt:
+Phase 4 receives the top-$N$ candidates by raw Phase~3 score (default
+$N = 20$, configurable via \texttt{TOP\_N\_FOR\_CALIBRATION}) and produces a
+\texttt{FinalRanking} with four constraints enforced by the prompt:
 
 \begin{enumerate}
   \item \textbf{Score spread}: calibrated scores must not cluster; the model is
@@ -410,7 +418,17 @@ produces a \texttt{FinalRanking} with three constraints enforced by the prompt:
         profiles justifying the ordering.
   \item \textbf{Delta recording}: the difference between calibrated and raw score
         is recorded for every candidate.
+  \item \textbf{Positional ID protocol}: candidates are presented to the model as
+        a numbered list (Position 1, Position 2, \ldots) rather than by opaque ID
+        strings. The model returns integer position references; the agent maps
+        positions back to candidate identifiers deterministically. This eliminates
+        the failure mode where the LLM generates a candidate identifier not present
+        in the input pool.
 \end{enumerate}
+
+The shortlist design (top-$N$) prevents context-window overflow when candidate
+pools are large while ensuring the calibrator observes the most competitive
+candidates—those most likely to require comparative borderline reasoning.
 
 The pool calibrator thus provides the comparative reasoning absent from
 independently scored frameworks. By seeing all candidates at once, it can detect
@@ -444,7 +462,7 @@ and per-candidate score variance are reported.
 
 The borderline-pair threshold is environment-configurable via
 \texttt{BORDERLINE\_SCORE\_THRESHOLD} (default 5.0). The hallucination similarity
-threshold $\phi$ is fixed at 0.85 in the checker module. The pipeline runs entirely
+threshold $\phi$ is fixed at 0.90 in the checker module. The pipeline runs entirely
 on local hardware using Ollama-served models, requiring no cloud API
 access—an important property for organisations with data-sovereignty requirements.
 

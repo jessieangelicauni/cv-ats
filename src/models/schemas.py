@@ -135,3 +135,25 @@ class FinalRanking(BaseModel):
     pool_summary: str
     calibration_rationale: str
     borderline_pairs: list[BorderlinePair]
+
+
+# Intermediate LLM output for Phase 4 — uses integer positions instead of candidate IDs
+# to prevent the model from hallucinating ID strings.
+class CalibratedEntry(BaseModel):
+    position: int
+    calibrated_score: float = Field(ge=0.0, le=100.0)
+    delta_from_raw: float
+    comparative_notes: str
+
+
+class BorderlinePairByPosition(BaseModel):
+    position_a: int
+    position_b: int
+    reason: str
+
+
+class PoolCalibrationResult(BaseModel):
+    calibrated_entries: list[CalibratedEntry]
+    pool_summary: str
+    calibration_rationale: str
+    borderline_pairs: list[BorderlinePairByPosition]

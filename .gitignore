@@ -1,6 +1,6 @@
 # Environment
 .env
-.docs/
+docs/
 # Cache & runtime artifacts
 .cache/
 results/

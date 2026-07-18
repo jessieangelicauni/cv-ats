@@ -1,14 +1,20 @@
 from __future__ import annotations
+import re
 from sentence_transformers import util
 from src.models.schemas import CandidateAssessment, HallucinationFlag
 from src.utils.embedder import get_embedder
 
 
-def _semantic_similarity(quote: str, full_text: str) -> float:
+def _max_sentence_similarity(quote: str, full_text: str) -> float:
+    """Max cosine similarity between the quote and any sentence in the CV text."""
+    sentences = [s.strip() for s in re.split(r"[.!?\n]+", full_text) if s.strip()]
+    if not sentences:
+        return 0.0
     embedder = get_embedder()
     emb_quote = embedder.encode(quote, convert_to_tensor=True)
-    emb_text = embedder.encode(full_text, convert_to_tensor=True)
-    return float(util.cos_sim(emb_quote, emb_text))
+    emb_sentences = embedder.encode(sentences, convert_to_tensor=True)
+    scores = util.cos_sim(emb_quote, emb_sentences)[0]
+    return float(scores.max())
 
 
 def verify_evidence_chain(
@@ -18,11 +24,12 @@ def verify_evidence_chain(
     flags: list[HallucinationFlag] = []
     for item in assessment.evidence_chain:
         quote = item.evidence_quote.strip()
+
         if quote == "NOT FOUND IN CV":
             status = "acknowledged_gap"
-        elif quote in raw_cv_text:
+        elif quote.lower() in raw_cv_text.lower():
             status = "supported"
-        elif _semantic_similarity(quote, raw_cv_text) > 0.85:
+        elif _max_sentence_similarity(quote, raw_cv_text) > 0.9:
             status = "inferred"
         else:
             status = "fabricated"

@@ -13,6 +13,7 @@ JUDGE_TEMPERATURE = float(os.getenv("JUDGE_TEMPERATURE", "0.1"))
 
 BORDERLINE_SCORE_THRESHOLD = float(os.getenv("BORDERLINE_SCORE_THRESHOLD", "5.0"))
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+TOP_N_FOR_CALIBRATION = int(os.getenv("TOP_N_FOR_CALIBRATION", "20"))
 
 BASE_DIR = Path(__file__).parent
 RESULTS_DIR = BASE_DIR / "results"

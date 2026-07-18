@@ -71,7 +71,14 @@ def run_pipeline(
 
     assessments = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured)
 
-    final_ranking = _run_phase(4, phase4_pool_calibrator, assessments, jd_structured)
+    # Keep only the top N candidates by raw Phase 3 score for Phase 4.
+    # Prevents context window overflow when candidate pools are large (e.g. 200 CVs).
+    shortlist = sorted(assessments, key=lambda a: a.raw_score, reverse=True)[
+        : config.TOP_N_FOR_CALIBRATION
+    ]
+
+    final_ranking = _run_phase(4, phase4_pool_calibrator, shortlist, jd_structured,
+                               shortlist_size=len(shortlist), total_assessed=len(assessments))
 
     return ATSState(
         jd_raw=jd_raw,
@@ -84,4 +91,5 @@ def run_pipeline(
         trace_log=trace_log,
         use_cache=use_cache,
         eliminated_candidates=eliminated,
+        shortlisted_for_calibration=[a.candidate_id for a in shortlist],
     )

@@ -21,6 +21,12 @@ def test_exact_match_is_supported():
     assert flags[0].status == "supported"
 
 
+def test_case_insensitive_verbatim_is_supported():
+    assessment = _make_assessment(["led backend migration using python and gRPC"])
+    flags = verify_evidence_chain(assessment, RAW_CV)
+    assert flags[0].status == "supported"
+
+
 def test_not_found_in_cv_is_acknowledged_gap():
     assessment = _make_assessment(["NOT FOUND IN CV"])
     flags = verify_evidence_chain(assessment, RAW_CV)
