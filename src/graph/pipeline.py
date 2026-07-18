@@ -1,5 +1,4 @@
 from __future__ import annotations
-import hashlib
 import time
 import uuid
 from typing import Callable
@@ -9,7 +8,6 @@ from src.graph.nodes import (
     phase3_candidate_judge, phase4_pool_calibrator,
 )
 from src.utils.cache import ExtractionCache
-from src.utils.vector_store import CVVectorStore
 from src.utils.skill_normalizer import normalize_skills
 from src.models.schemas import CandidateProfile, JDRequirements
 import config
@@ -41,8 +39,7 @@ def run_pipeline(
     on_phase_complete: Callable[[dict], None] | None = None,
 ) -> ATSState:
     run_id = run_id or str(uuid.uuid4())[:8]
-    cache        = ExtractionCache(config.CACHE_DB_PATH) if use_cache else None
-    vector_store = CVVectorStore(config.CHROMA_DB_PATH)  if use_cache else None
+    cache = ExtractionCache(config.CACHE_DB_PATH) if use_cache else None
 
     trace_log: list[dict] = []
 
@@ -68,12 +65,11 @@ def run_pipeline(
             s.skill = jd_norm_map.get(s.skill, s.skill)
 
     cv_profiles = _run_phase(2, phase2_cv_extractor, cv_raws, cache,
-                             vector_store, candidates=len(cv_raws))
+                             candidates=len(cv_raws))
 
     cv_profiles, eliminated = _filter_by_required_skills(cv_profiles, jd_structured)
 
-    assessments = _run_phase(3, phase3_candidate_judge, cv_profiles,
-                             jd_structured, vector_store)
+    assessments = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured)
 
     final_ranking = _run_phase(4, phase4_pool_calibrator, assessments, jd_structured)
 
