@@ -483,9 +483,8 @@ requiring external annotation.
 \subsection{Implementation Details}
 
 EvidenceRank is implemented in Python 3.11 using LangChain (v1.3.13+) for LLM
-orchestration, ChromaDB (v0.6+) for vector storage, sentence-transformers (v5.6+)
-with \texttt{all-MiniLM-L6-v2} for embeddings, and Pydantic v2 for schema
-validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-model
+orchestration, sentence-transformers (v5.6+) with \texttt{all-MiniLM-L6-v2} for
+hallucination-check embeddings, and Pydantic v2 for schema validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-model
 tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
 
 
@@ -497,23 +496,18 @@ tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
 Based on the five identified research gaps, we propose the following novelties that
 constitute EvidenceRank's primary scientific contributions:
 
-\textbf{N1 — Self-Document Retrieval-Augmented Assessment (G2):}
-Rather than retrieving from external job knowledge bases as in
-\cite{tran2025,lo2025}, EvidenceRank indexes the candidate's own CV at paragraph
-granularity and retrieves dimension-focused excerpts into the LLM's context window.
-This is the first application of within-document RAG to recruitment assessment.
-
 \textbf{N2 — Evidence-Chain Hallucination Grounding with Post-Hoc Verification (G1):}
 The mandatory evidence-chain protocol—requiring verbatim citation for every
 dimensional score, with post-hoc MiniLM cosine similarity classification into four
 semantic categories—is a novel quality assurance layer absent from all reviewed
 frameworks \cite{chowdhury2026,jahan2026,hoque2026,yuksel2026}.
 
-\textbf{N3 — Per-Skill Cosine Similarity Pre-Filter (G3):}
-Cosine similarity is applied at the individual skill-name level (JD
-\texttt{SkillRequirement.skill} vs.\ candidate \texttt{SkillEntry.canonical\_skill})
-rather than at full-document level, providing fine-grained required-skill coverage
-verification that eliminates clearly unqualified candidates before LLM judging.
+\textbf{N3 — LLM-Normalised Exact-Match Skill Pre-Filter (G3):}
+After both JD and CV skill names are normalised to canonical forms by the same LLM
+prompt, a Python set intersection on the resulting canonical name strings eliminates
+candidates with no required-skill overlap before LLM judging. This inter-normalised
+exact matching provides targeted required-skill coverage verification that reduces
+unnecessary LLM invocations.
 
 \textbf{N4 — Pool-Aware Holistic Calibration with Borderline Pair Reasoning (G4):}
 The Phase 4 pool calibrator is the first module in the reviewed literature to
@@ -533,14 +527,13 @@ tracking pipeline.
 We presented EvidenceRank, a four-phase multi-agent LLM pipeline for IT candidate
 ranking that simultaneously addresses hallucination, pool-blind scoring, and
 ranking instability—three critical gaps unresolved by existing literature.
-The architecture integrates self-document RAG, evidence-chain grounding,
-semantic skill pre-filtering, and pool-aware calibration.
+The architecture integrates evidence-chain grounding, LLM-normalised
+exact-match skill pre-filtering, and pool-aware calibration.
 
 The key insight is that hallucination in LLM assessment pipelines is not solely an
-intrinsic model deficiency but an architectural one: by providing focused
-self-document context (RAG), enforcing verbatim evidence citation, and verifying
-claims post-generation, the fabrication rate is reduced by grounding each claim in focused
-self-document context rather than relying on the model's parametric memory.
+intrinsic model deficiency but an architectural one: by enforcing verbatim evidence
+citation from the structured candidate profile and verifying each claim post-generation,
+the fabrication rate is reduced without relying on the model's parametric memory.
 
 \textbf{Future work} directions include:
 
@@ -575,8 +568,8 @@ self-document context rather than relying on the model's parametric memory.
         further beyond what zero-shot large models can achieve.
 \end{enumerate}
 
-EvidenceRank demonstrates that rigorous architectural choices—self-document RAG,
-evidence chain constraints, semantic pre-filtering, and pool-aware calibration—can
+EvidenceRank demonstrates that rigorous architectural choices—evidence-chain
+constraints, normalised exact-match skill pre-filtering, and pool-aware calibration—can
 substantially close the gap between LLM-based and human-expert recruitment
 quality, while simultaneously providing the transparency and auditability required
 for responsible deployment in high-stakes hiring decisions.
