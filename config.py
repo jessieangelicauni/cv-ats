@@ -18,11 +18,10 @@ BASE_DIR = Path(__file__).parent
 RESULTS_DIR = BASE_DIR / "results"
 JD_DIR = BASE_DIR / "jd"
 CACHE_DB_PATH = BASE_DIR / ".cache" / "extractions.db"
-CHROMA_DB_PATH = BASE_DIR / ".cache" / "chroma"
 
 
 def ensure_dirs() -> None:
-    for _d in [RESULTS_DIR, JD_DIR, CACHE_DB_PATH.parent, CHROMA_DB_PATH]:
+    for _d in [RESULTS_DIR, JD_DIR, CACHE_DB_PATH.parent]:
         _d.mkdir(parents=True, exist_ok=True)
 
 
