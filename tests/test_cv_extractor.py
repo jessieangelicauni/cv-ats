@@ -51,10 +51,10 @@ def _make_mock_profile() -> CandidateProfile:
 
 
 def test_cv_extractor_returns_candidate_profile():
-    mock_extract_llm = MagicMock(return_value=_make_mock_profile())
+    mock_extract_llm = MagicMock()
+    mock_extract_llm.invoke.return_value = _make_mock_profile()
 
-    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm), \
-         patch("src.agents.cv_extractor.invoke_with_telemetry", return_value=_make_mock_profile()):
+    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm):
         agent = CVExtractorAgent()
         result = agent.run({"raw_text": SAMPLE_CV, "candidate_id": "cv_001", "source_file": "cv_001.pdf"})
 
@@ -65,11 +65,12 @@ def test_cv_extractor_returns_candidate_profile():
 
 def test_cv_extractor_applies_llm_canonicalization():
     """LLM normalizer maps 'postgres' -> 'PostgreSQL'."""
-    mock_extract_llm = MagicMock(return_value=_make_mock_profile())
+    mock_extract_llm = MagicMock()
+    mock_extract_llm.invoke.return_value = _make_mock_profile()
 
     with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm), \
-         patch("src.agents.cv_extractor.invoke_with_telemetry", return_value=_make_mock_profile()), \
-         patch("src.agents.cv_extractor.normalize_skills", return_value={"postgres": "PostgreSQL", "Python": "Python", "Docker": "Docker"}):
+         patch("src.agents.cv_extractor.normalize_skills",
+               return_value={"postgres": "PostgreSQL", "Python": "Python", "Docker": "Docker"}):
         agent = CVExtractorAgent()
         result = agent.run({"raw_text": SAMPLE_CV, "candidate_id": "cv_001", "source_file": "cv_001.pdf"})
 
