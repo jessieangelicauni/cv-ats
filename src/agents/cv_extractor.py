@@ -1,8 +1,7 @@
 from __future__ import annotations
-from opentelemetry.trace import get_current_span
 from langchain_core.messages import SystemMessage, HumanMessage
 from src.models.schemas import CandidateProfile
-from src.utils.llm import get_llm, invoke_with_telemetry
+from src.utils.llm import get_llm
 from src.utils.cache import ExtractionCache
 from src.utils.skill_normalizer import normalize_skills
 from src.prompts import cv_extractor as prompts
@@ -22,16 +21,11 @@ class CVExtractorAgent:
         if self._cache:
             cached = self._cache.get(cache_key)
             if cached:
-                get_current_span().set_attribute("cache.hit", True)
                 return CandidateProfile.model_validate(cached)
 
-        get_current_span().set_attribute("cache.hit", False)
-
-        profile: CandidateProfile = invoke_with_telemetry(
-            self._extract_llm,
+        profile: CandidateProfile = self._extract_llm.invoke(
             [SystemMessage(content=prompts.SYSTEM_2A),
-             HumanMessage(content=prompts.human_2a(cv_text, candidate_id))],
-            run_name="cv_extractor.extract",
+             HumanMessage(content=prompts.human_2a(cv_text, candidate_id))]
         )
 
         raw_mentions = [s.raw_mention for s in profile.skills]

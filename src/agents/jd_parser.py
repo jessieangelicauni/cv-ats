@@ -1,9 +1,8 @@
 from __future__ import annotations
 import hashlib
-from opentelemetry.trace import get_current_span
 from langchain_core.messages import SystemMessage, HumanMessage
 from src.models.schemas import JDRequirements
-from src.utils.llm import get_llm, invoke_with_telemetry
+from src.utils.llm import get_llm
 from src.utils.cache import ExtractionCache
 from src.prompts import jd_parser as prompts
 import config
@@ -21,15 +20,11 @@ class JDParserAgent:
         if self._cache:
             cached = self._cache.get(cache_key)
             if cached:
-                get_current_span().set_attribute("cache.hit", True)
                 return JDRequirements.model_validate(cached)
 
-        get_current_span().set_attribute("cache.hit", False)
-        result: JDRequirements = invoke_with_telemetry(
-            self._llm,
+        result: JDRequirements = self._llm.invoke(
             [SystemMessage(content=prompts.SYSTEM),
-             HumanMessage(content=prompts.human(jd_text, jd_hash))],
-            run_name="jd_parser",
+             HumanMessage(content=prompts.human(jd_text, jd_hash))]
         )
         result.raw_jd_hash = jd_hash
 

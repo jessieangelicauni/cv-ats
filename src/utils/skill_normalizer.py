@@ -1,7 +1,7 @@
 from __future__ import annotations
 from langchain_core.messages import SystemMessage, HumanMessage
 from src.models.schemas import SkillNormalizationMap
-from src.utils.llm import get_llm, invoke_with_telemetry
+from src.utils.llm import get_llm
 from src.prompts.cv_extractor import SYSTEM_2B, human_2b
 import config
 
@@ -15,10 +15,8 @@ def normalize_skills(raw_names: list[str]) -> dict[str, str]:
     if not raw_names:
         return {}
     llm = get_llm(config.SMALL_MODEL, SkillNormalizationMap, config.EXTRACTION_TEMPERATURE)
-    result: SkillNormalizationMap = invoke_with_telemetry(
-        llm,
+    result: SkillNormalizationMap = llm.invoke(
         [SystemMessage(content=SYSTEM_2B),
-         HumanMessage(content=human_2b(raw_names))],
-        run_name="skill_normalizer",
+         HumanMessage(content=human_2b(raw_names))]
     )
     return result.mappings
