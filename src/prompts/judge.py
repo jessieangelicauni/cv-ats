@@ -18,7 +18,6 @@ Return a valid JSON object matching the required schema exactly."""
 def human(
     jd_json: str,
     profile_json: str,
-    context_chunks: list[str] | None = None,
     skill_matches: list | None = None,
 ) -> str:
     parts: list[str] = [
@@ -26,13 +25,6 @@ def human(
         f"JOB REQUIREMENTS:\n{jd_json}\n\n"
         f"CANDIDATE PROFILE:\n{profile_json}\n\n"
     ]
-
-    if context_chunks:
-        separator = "\n--- chunk ---\n"
-        parts.append(
-            "RELEVANT CV EXCERPTS (raw text — use for evidence_quote verification):\n"
-            f"--- chunk ---\n{separator.join(context_chunks)}\n\n"
-        )
 
     if skill_matches:
         rows = [

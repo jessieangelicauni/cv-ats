@@ -14,7 +14,6 @@ class CandidateJudgeAgent:
         self,
         profile: CandidateProfile,
         jd: JDRequirements,
-        context_chunks: list[str] | None = None,
         skill_matches: list | None = None,
     ) -> CandidateAssessment:
         return self._llm.invoke(
@@ -22,7 +21,6 @@ class CandidateJudgeAgent:
              HumanMessage(content=prompts.human(
                  jd.model_dump_json(indent=2),
                  profile.model_dump_json(indent=2),
-                 context_chunks=context_chunks,
                  skill_matches=skill_matches,
              ))]
         )
