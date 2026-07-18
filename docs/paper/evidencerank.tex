@@ -212,7 +212,7 @@ score separation across the full candidate set.
 
 \subsection{Identified Research Gaps Summary}
 
-Drawing from the above survey, we identify five concrete gaps:
+Drawing from the above survey, we identify four concrete gaps:
 
 \textbf{G1 — Hallucination absence of verification:} No pipeline verifies LLM
 assessment claims against source text post-generation \cite{chowdhury2026,
@@ -259,7 +259,7 @@ hallucination checker. All intermediate state is carried in a typed \texttt{ATSS
 
 \node[box] (p1) {Phase 1\\JD Parser\\(Small LLM)};
 \node[box, below=of p1] (p2) {Phase 2\\CV Extractor\\(Small LLM $\times$2)};
-\node[box, below=of p2] (prefilter) {Pre-Filter\\Semantic Skill\\Matcher (MiniLM)};
+\node[box, below=of p2] (prefilter) {Pre-Filter\\Exact-Match\\Skill Filter};
 \node[box, below=of prefilter] (p3) {Phase 3\\Candidate Judge\\(Large LLM)};
 \node[box, below=of p3] (p4) {Phase 4\\Pool Calibrator\\(Large LLM)};
 
@@ -337,7 +337,7 @@ a ``Filtered Candidates'' section.
 
 Phase 3 is the core assessment engine. Each passing candidate is evaluated against
 the JD by a large LLM (default: \texttt{llama3.3:70b}) acting as a 15-year
-senior technical recruiter. The phase receives three inputs:
+senior technical recruiter. The phase receives two inputs:
 
 \begin{enumerate}
   \item The structured \texttt{CandidateProfile} from Phase 2 (JSON).
@@ -353,10 +353,10 @@ accordingly. The model assesses five dimensions on a 0–10 scale:
 
 \begin{enumerate}
   \item \textit{Technical Skills Fit} — grounded by the skill coverage table.
-  \item \textit{Experience Depth} — grounded by work history excerpts.
-  \item \textit{Career Trajectory} — inferred from chronological work history.
-  \item \textit{Leadership \& Impact} — sourced from achievement statements.
-  \item \textit{Education \& Credentials} — sourced from education excerpts.
+  \item \textit{Experience Depth} — grounded by structured work history in the candidate profile.
+  \item \textit{Career Trajectory} — inferred from chronological work history in the candidate profile.
+  \item \textit{Leadership \& Impact} — sourced from achievement statements in the candidate profile.
+  \item \textit{Education \& Credentials} — sourced from structured education data in the candidate profile.
 \end{enumerate}
 
 The final \texttt{raw\_score} (0–100) is a holistic judgment, not a formula, so
@@ -442,12 +442,11 @@ and per-candidate score variance are reported.
 
 \subsection{System Configuration}
 
-All thresholds are environment-configurable: \texttt{SKILL\_MATCH\_THRESHOLD}
-(default 0.75), \texttt{HALLUCINATION\_SIMILARITY\_THRESHOLD} (default 0.85),
-\texttt{RETRIEVAL\_TOP\_K} (default 5), \texttt{BORDERLINE\_SCORE\_THRESHOLD}
-(default 5.0). The pipeline runs entirely on local hardware using Ollama-served
-models, requiring no cloud API access—an important property for organisations with
-data-sovereignty requirements.
+The borderline-pair threshold is environment-configurable via
+\texttt{BORDERLINE\_SCORE\_THRESHOLD} (default 5.0). The hallucination similarity
+threshold $\phi$ is fixed at 0.85 in the checker module. The pipeline runs entirely
+on local hardware using Ollama-served models, requiring no cloud API
+access—an important property for organisations with data-sovereignty requirements.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
@@ -493,28 +492,28 @@ tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
 \section{Research Novelties}
 \label{sec:novelty}
 
-Based on the five identified research gaps, we propose the following novelties that
+Based on the four identified research gaps, we propose the following novelties that
 constitute EvidenceRank's primary scientific contributions:
 
-\textbf{N2 — Evidence-Chain Hallucination Grounding with Post-Hoc Verification (G1):}
+\textbf{N1 — Evidence-Chain Hallucination Grounding with Post-Hoc Verification (G1):}
 The mandatory evidence-chain protocol—requiring verbatim citation for every
 dimensional score, with post-hoc MiniLM cosine similarity classification into four
 semantic categories—is a novel quality assurance layer absent from all reviewed
 frameworks \cite{chowdhury2026,jahan2026,hoque2026,yuksel2026}.
 
-\textbf{N3 — LLM-Normalised Exact-Match Skill Pre-Filter (G3):}
+\textbf{N2 — LLM-Normalised Exact-Match Skill Pre-Filter (G3):}
 After both JD and CV skill names are normalised to canonical forms by the same LLM
 prompt, a Python set intersection on the resulting canonical name strings eliminates
 candidates with no required-skill overlap before LLM judging. This inter-normalised
 exact matching provides targeted required-skill coverage verification that reduces
 unnecessary LLM invocations.
 
-\textbf{N4 — Pool-Aware Holistic Calibration with Borderline Pair Reasoning (G4):}
+\textbf{N3 — Pool-Aware Holistic Calibration with Borderline Pair Reasoning (G4):}
 The Phase 4 pool calibrator is the first module in the reviewed literature to
 observe all candidate assessments simultaneously and produce justified borderline
 pair comparisons, ensuring meaningful score separation.
 
-\textbf{N5 — Kendall's $\tau$ Consistency Measurement for LLM-Based ATS (G5):}
+\textbf{N4 — Kendall's $\tau$ Consistency Measurement for LLM-Based ATS (G5):}
 The multi-run consistency experiment with Kendall's $\tau$ reporting is the first
 operational reliability metric proposed and measured for an LLM-based applicant
 tracking pipeline.
@@ -547,10 +546,11 @@ the fabrication rate is reduced without relying on the model's parametric memory
         calibrated per-domain threshold learned from annotated data would reduce
         false-positive fabrication flags on paraphrased claims.
 
-  \item \textbf{Graph-augmented skill matching}: Replacing flat cosine similarity
-        with a skill ontology graph (e.g., ESCO, O*NET as in \cite{alonso2025})
-        would handle hierarchical skill relationships (e.g., ``Kubernetes'' as a
-        specialisation of ``container orchestration'') that flat embeddings miss.
+  \item \textbf{Graph-augmented skill matching}: Replacing the flat exact-match
+        skill pre-filter with a skill ontology graph (e.g., ESCO, O*NET as in
+        \cite{alonso2025}) would handle hierarchical skill relationships
+        (e.g., ``Kubernetes'' as a specialisation of ``container orchestration'')
+        that exact string matching misses.
 
   \item \textbf{Bias audit}: Systematic audit of the pipeline's gender, age, and
         institutional-prestige biases following the fairness frameworks proposed
