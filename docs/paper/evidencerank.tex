@@ -247,10 +247,8 @@ EvidenceRank directly addresses all remaining gaps.
 EvidenceRank processes a job description (JD) and a set of candidate CVs
 through a sequential four-phase pipeline. Fig.~\ref{fig:architecture} illustrates
 the full system. Each phase is implemented as a dedicated agent with its own
-prompt and Pydantic-validated output schema. A shared
-all-MiniLM-L6-v2 singleton provides embeddings to three sub-systems: the
-ChromaDB vector store, the semantic skill matcher, and the post-hoc hallucination
-checker. All intermediate state is carried in a typed \texttt{ATSState} model.
+prompt and Pydantic-validated output schema. A shared all-MiniLM-L6-v2 singleton provides embeddings to the post-hoc
+hallucination checker. All intermediate state is carried in a typed \texttt{ATSState} model.
 
 \begin{figure}[!t]
 \centering
@@ -270,9 +268,7 @@ checker. All intermediate state is carried in a typed \texttt{ATSState} model.
 \node[box, below=of prefilter] (p3) {Phase 3\\Candidate Judge\\(Large LLM)};
 \node[box, below=of p3] (p4) {Phase 4\\Pool Calibrator\\(Large LLM)};
 
-\node[subbox, right=1.6cm of p2] (chroma) {ChromaDB\\Paragraph\\Chunks};
-\node[subbox, right=1.6cm of p3] (rag) {RAG\\Retrieval\\(Top-$K$)};
-\node[subbox, below=0.3cm of rag] (skills) {Skill Coverage\\Table (MiniLM\\Cosine)};
+\node[subbox, right=1.6cm of p3] (skills) {Skill Coverage\\Table (Exact\\Match)};
 \node[subbox, right=1.6cm of p4] (hcheck) {Hallucination\\Checker\\(MiniLM)};
 
 \draw[arrow] (p1) -- (p2);
@@ -280,18 +276,14 @@ checker. All intermediate state is carried in a typed \texttt{ATSState} model.
 \draw[arrow] (prefilter) -- (p3) node[midway, left, font=\scriptsize]{pass};
 \draw[arrow] (p3) -- (p4);
 
-\draw[dasharrow] (p2) -- (chroma);
-\draw[dasharrow] (chroma) -- (rag);
-\draw[dasharrow] (rag) -- (p3);
 \draw[dasharrow] (prefilter) -- (skills);
 \draw[dasharrow] (skills) -- (p3);
 \draw[dasharrow] (p3) -- (hcheck);
 \draw[dasharrow] (p4) |- (hcheck);
 
 \end{tikzpicture}
-\caption{EvidenceRank four-phase pipeline. Dashed arrows indicate data flows
-from the shared MiniLM embedding sub-systems. Candidates rejected by the
-pre-filter bypass Phase 3 entirely.}
+\caption{EvidenceRank four-phase pipeline. Dashed arrows indicate auxiliary data flows.
+Candidates rejected by the pre-filter bypass Phase 3 entirely.}
 \label{fig:architecture}
 \end{figure}
 
