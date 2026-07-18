@@ -106,8 +106,7 @@ To address these three problems, we make the following contributions:
 \begin{enumerate}
   \item We design \textbf{EvidenceRank}, a four-phase multi-agent LLM pipeline
         (JD parsing → RAG-augmented CV extraction → evidence-grounded candidate
-        judging → pool-aware calibration) with full OpenTelemetry tracing via
-        Langfuse.
+        judging → pool-aware calibration).
 
   \item We introduce \textbf{retrieval-augmented self-document assessment}: each
         candidate's CV is paragraph-chunked, indexed in ChromaDB, and queried
@@ -262,7 +261,7 @@ EvidenceRank directly addresses all five gaps.
 EvidenceRank processes a job description (JD) and a set of candidate CVs
 through a sequential four-phase pipeline. Fig.~\ref{fig:architecture} illustrates
 the full system. Each phase is implemented as a dedicated agent with its own
-prompt, Pydantic-validated output schema, and OpenTelemetry span. A shared
+prompt and Pydantic-validated output schema. A shared
 all-MiniLM-L6-v2 singleton provides embeddings to three sub-systems: the
 ChromaDB vector store, the semantic skill matcher, and the post-hoc hallucination
 checker. All intermediate state is carried in a typed \texttt{ATSState} model.
@@ -449,7 +448,7 @@ The hallucination rate is defined as:
 \end{equation}
 where $F$, $S$, and $I$ are counts of fabricated, supported, and inferred claims,
 respectively (acknowledged gaps are excluded from the denominator as they are
-correct behaviour). This metric is reported per run and stored as a Langfuse score.
+correct behaviour). This metric is reported per run.
 
 \subsection{Phase 4: Pool-Aware Holistic Calibration}
 \label{subsec:phase4}
@@ -495,7 +494,7 @@ where $C$ is the number of concordant pairs, $D$ is the number of discordant
 pairs, and $n$ is the number of candidates. Mean $\tau$ across all pairs of runs
 and per-candidate score variance are reported.
 
-\subsection{System Configuration and Observability}
+\subsection{System Configuration}
 
 All thresholds are environment-configurable: \texttt{SKILL\_MATCH\_THRESHOLD}
 (default 0.75), \texttt{HALLUCINATION\_SIMILARITY\_THRESHOLD} (default 0.85),
@@ -503,12 +502,6 @@ All thresholds are environment-configurable: \texttt{SKILL\_MATCH\_THRESHOLD}
 (default 5.0). The pipeline runs entirely on local hardware using Ollama-served
 models, requiring no cloud API access—an important property for organisations with
 data-sovereignty requirements.
-
-Every pipeline run produces an OpenTelemetry trace exported to Langfuse, with
-nested spans at pipeline, phase, and per-candidate levels. Evaluation metrics
-(hallucination rate, calibration statistics, consistency $\tau$) are logged as
-Langfuse scores attached to each run's trace. This observability layer enables
-continuous quality monitoring in production deployments.
 
 
 %% ─────────────────────────────────────────────────────────────────────────────
