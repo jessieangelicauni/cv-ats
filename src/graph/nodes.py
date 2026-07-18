@@ -55,7 +55,6 @@ def phase3_candidate_judge(
     profiles: list[CandidateProfile],
     jd: JDRequirements,
     vector_store: CVVectorStore | None,
-    use_evidence_grounding: bool = True,
 ) -> list[CandidateAssessment]:
     with _tracer.start_as_current_span("phase3/candidate_judge") as span:
         span.set_attribute("phase", 3)
@@ -84,9 +83,7 @@ def phase3_candidate_judge(
                         )
                         for s in jd.required_skills + jd.preferred_skills
                     ]
-                    return CandidateJudgeAgent(
-                        use_evidence_grounding=use_evidence_grounding
-                    ).run(
+                    return CandidateJudgeAgent().run(
                         profile, jd, context_chunks or None, skill_matches or None
                     )
                 except Exception as exc:
