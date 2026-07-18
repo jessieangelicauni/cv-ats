@@ -83,7 +83,7 @@ Strip all OTel tracing and Langfuse observability from the codebase. Each agent 
 - Remove the entire Langfuse score block inside `if runs > 1:` (the `from itertools import combinations` import + the two `lf.create_score` loops)
 - Remove the `tracer = get_tracer()` and `with tracer.start_as_current_span("consistency_experiment", ...):` wrapper in the `runs > 1` branch — inline its body
 - Remove all `lf.create_score(...)` calls inside `if eval:`
-- Remove `shutdown()` from the `finally:` block (delete the `finally:` block entirely if `shutdown()` is its only content)
+- Remove the `try: ... finally: shutdown()` wrapper entirely — `shutdown()` is the only thing in the `finally:` block, so remove both `try:` and `finally: shutdown()` and unindent the pipeline body one level
 - Remove `session_id=session_id` from `run_pipeline(...)` call
 
 ### `tests/test_cv_extractor.py`
