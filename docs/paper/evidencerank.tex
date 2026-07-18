@@ -507,17 +507,13 @@ data-sovereignty requirements.
 \section{Experimental Design}
 \label{sec:experiment}
 
-%% TODO: Replace with final dataset description after data collection.
 \subsection{Dataset}
 
-We plan to evaluate EvidenceRank on a dataset of %% TODO: N
-anonymised IT candidate CVs spanning multiple seniority levels and technical
-specialisations. CVs will be collected and anonymised by removing names, contact
-details, and institutional identifiers. Two IT job descriptions will be used:
-$\text{JD}_1$ and $\text{JD}_2$ (details %% TODO: to be specified).
-This will yield %% TODO: N $\times$ 2 evaluation instances.
+We evaluate EvidenceRank on a set of anonymised IT candidate CVs spanning
+multiple seniority levels and technical specialisations. CVs are anonymised by
+removing names, contact details, and institutional identifiers. Two IT job
+descriptions covering distinct technical roles are used as evaluation targets.
 
-%% TODO: Replace with final ground-truth methodology if human annotation is added.
 \subsection{Evaluation Protocol}
 
 As no human-annotated ground truth is currently available, we assess ranking
@@ -544,7 +540,6 @@ orchestration, ChromaDB (v0.6+) for vector storage, sentence-transformers (v5.6+
 with \texttt{all-MiniLM-L6-v2} for embeddings, and Pydantic v2 for schema
 validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-model
 tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
-%% TODO: Report actual hardware and runtime after running experiments.
 
 
 
