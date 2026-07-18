@@ -14,7 +14,6 @@ class ATSState(BaseModel):
     candidate_assessments: list[CandidateAssessment] = Field(default_factory=list)
     final_ranking: FinalRanking | None = None
     run_id: str
-    otel_trace_id: str = ""
     trace_log: list[dict] = Field(default_factory=list)
     hallucination_flags: list[HallucinationFlag] = Field(default_factory=list)
     use_cache: bool = True
