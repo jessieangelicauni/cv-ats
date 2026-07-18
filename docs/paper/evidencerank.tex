@@ -44,19 +44,16 @@ awareness of the broader candidate pool (calibration), and ranking stability acr
 repeated LLM calls has not been systematically quantified. We present
 \textbf{EvidenceRank}, a local-first, four-phase multi-agent LLM pipeline that
 addresses all three limitations simultaneously for IT recruitment. The system
-introduces (1) a \emph{retrieval-augmented assessment} mechanism that indexes
-candidate CV text into ChromaDB as paragraph-level chunks and retrieves focused
-context using the job requirements as the retrieval query; (2) an \emph{evidence-chain grounding}
+introduces (1) an \emph{evidence-chain grounding}
 constraint requiring every dimension score to cite a verbatim text quote, backed by
-post-hoc semantic verification using all-MiniLM-L6-v2; (3) a \emph{semantic skill
+post-hoc semantic verification using all-MiniLM-L6-v2; (2) a \emph{semantic skill
 pre-filter} that eliminates candidates lacking required-skill matches through exact
-canonical name matching after LLM-based skill normalisation, before expensive LLM judging; and (4) a \emph{pool-aware holistic
+canonical name matching after LLM-based skill normalisation, before expensive LLM judging; and (3) a \emph{pool-aware holistic
 calibration} phase that resolves borderline pairs through comparative reasoning.
 \end{abstract}
 
 \begin{IEEEkeywords}
-applicant tracking systems, large language models, retrieval-augmented generation,
-hallucination detection, multi-agent systems, candidate ranking, natural language
+applicant tracking systems, large language models, hallucination detection, multi-agent systems, candidate ranking, natural language
 processing, semantic similarity, IT recruitment
 \end{IEEEkeywords}
 
@@ -105,14 +102,8 @@ To address these three problems, we make the following contributions:
 
 \begin{enumerate}
   \item We design \textbf{EvidenceRank}, a four-phase multi-agent LLM pipeline
-        (JD parsing → RAG-augmented CV extraction → evidence-grounded candidate
+        (JD parsing → structured CV extraction → evidence-grounded candidate
         judging → pool-aware calibration).
-
-  \item We introduce \textbf{retrieval-augmented self-document assessment}: each
-        candidate's CV is paragraph-chunked, indexed in ChromaDB, and queried
-        with three dimension-focused queries (experience, skills, education) to
-        provide focused context to the LLM assessor, reducing hallucination by
-        providing grounding evidence in-context.
 
   \item We propose an \textbf{evidence-chain grounding protocol}: every
         LLM-generated dimension score must be accompanied by a verbatim quote
@@ -121,9 +112,9 @@ To address these three problems, we make the following contributions:
         \textit{supported}, \textit{inferred}, \textit{fabricated}, or
         \textit{acknowledged\_gap}.
 
-  \item We implement a \textbf{semantic skill pre-filter} using MiniLM-based
-        cosine similarity that eliminates candidates below a required-skill
-        match threshold before LLM judging, reducing unnecessary LLM invocations.
+  \item We implement a \textbf{semantic skill pre-filter} using LLM-normalised
+        exact canonical name matching that eliminates candidates with no
+        required-skill overlap before LLM judging, reducing unnecessary LLM invocations.
 
   \item We quantify \textbf{ranking stability} using Kendall's $\tau$ across
         three repeated pipeline runs, providing the first reported consistency
