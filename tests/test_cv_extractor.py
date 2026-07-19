@@ -29,12 +29,12 @@ def _make_mock_profile() -> CandidateProfile:
             linkedin_url=None, current_title="Senior Backend Engineer",
         ),
         skills=[
-            SkillEntry(raw_mention="Python", canonical_skill="Python",
-                       proficiency="expert", evidence_quote="Python and gRPC"),
-            SkillEntry(raw_mention="postgres", canonical_skill="postgres",
-                       proficiency="advanced", evidence_quote="Maintained postgres cluster"),
-            SkillEntry(raw_mention="Docker", canonical_skill="Docker",
-                       proficiency="intermediate", evidence_quote="Docker"),
+            SkillEntry(raw_mention="Python", proficiency="expert",
+                       evidence_quote="Python and gRPC"),
+            SkillEntry(raw_mention="postgres", proficiency="advanced",
+                       evidence_quote="Maintained postgres cluster"),
+            SkillEntry(raw_mention="Docker", proficiency="intermediate",
+                       evidence_quote="Docker"),
         ],
         work_history=[
             WorkEntry(
@@ -63,17 +63,13 @@ def test_cv_extractor_returns_candidate_profile():
     assert result.basic_info.full_name == "Ahmad Faris Bin Razak"
 
 
-def test_cv_extractor_applies_llm_canonicalization():
-    """LLM normalizer maps 'postgres' -> 'PostgreSQL'."""
+def test_cv_extractor_preserves_raw_mentions():
     mock_extract_llm = MagicMock()
     mock_extract_llm.invoke.return_value = _make_mock_profile()
 
-    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm), \
-         patch("src.agents.cv_extractor.normalize_skills",
-               return_value={"postgres": "PostgreSQL", "Python": "Python", "Docker": "Docker"}):
+    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm):
         agent = CVExtractorAgent()
         result = agent.run({"raw_text": SAMPLE_CV, "candidate_id": "cv_001", "source_file": "cv_001.pdf"})
 
     postgres_skill = next(s for s in result.skills if s.raw_mention == "postgres")
-    assert postgres_skill.canonical_skill == "PostgreSQL"
     assert postgres_skill.raw_mention == "postgres"

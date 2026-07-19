@@ -7,7 +7,7 @@ from src.utils.embedder import get_embedder
 
 def _max_sentence_similarity(quote: str, full_text: str) -> float:
     """Max cosine similarity between the quote and any sentence in the CV text."""
-    sentences = [s.strip() for s in re.split(r"[.!?\n]+", full_text) if s.strip()]
+    sentences = [s.strip() for s in re.split(r"[!?\n]+", full_text) if s.strip()]
     if not sentences:
         return 0.0
     embedder = get_embedder()
@@ -23,13 +23,13 @@ def verify_evidence_chain(
 ) -> list[HallucinationFlag]:
     flags: list[HallucinationFlag] = []
     for item in assessment.evidence_chain:
-        quote = item.evidence_quote.strip()
+        quote = item.evidence_quote.strip().strip('"\'')
 
         if quote == "NOT FOUND IN CV":
             status = "acknowledged_gap"
         elif quote.lower() in raw_cv_text.lower():
             status = "supported"
-        elif _max_sentence_similarity(quote, raw_cv_text) > 0.9:
+        elif _max_sentence_similarity(quote, raw_cv_text) > 0.85:
             status = "inferred"
         else:
             status = "fabricated"

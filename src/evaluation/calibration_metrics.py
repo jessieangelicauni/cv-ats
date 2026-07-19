@@ -8,7 +8,9 @@ def calibration_report(
     assessments: list[CandidateAssessment],
     ranking: FinalRanking,
 ) -> dict:
-    raw_scores = np.array([a.raw_score for a in assessments])
+    shortlisted_ids = {r.candidate_id for r in ranking.ranked_candidates}
+    shortlisted = [a for a in assessments if a.candidate_id in shortlisted_ids]
+    raw_scores = np.array([a.raw_score for a in shortlisted])
     calibrated_scores = np.array([r.calibrated_score for r in ranking.ranked_candidates])
     deltas = np.array([abs(r.delta_from_raw) for r in ranking.ranked_candidates])
 

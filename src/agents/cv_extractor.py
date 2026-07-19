@@ -3,7 +3,6 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from src.models.schemas import CandidateProfile
 from src.utils.llm import get_llm
 from src.utils.cache import ExtractionCache
-from src.utils.skill_normalizer import normalize_skills
 from src.prompts import cv_extractor as prompts
 import config
 
@@ -27,12 +26,6 @@ class CVExtractorAgent:
             [SystemMessage(content=prompts.SYSTEM_2A),
              HumanMessage(content=prompts.human_2a(cv_text, candidate_id))]
         )
-
-        raw_mentions = [s.raw_mention for s in profile.skills]
-        if raw_mentions:
-            norm_map = normalize_skills(raw_mentions)
-            for skill in profile.skills:
-                skill.canonical_skill = norm_map.get(skill.raw_mention, skill.raw_mention)
 
         if self._cache:
             self._cache.set(cache_key, profile.model_dump())

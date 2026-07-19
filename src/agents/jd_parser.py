@@ -1,5 +1,4 @@
 from __future__ import annotations
-import hashlib
 from langchain_core.messages import SystemMessage, HumanMessage
 from src.models.schemas import JDRequirements
 from src.utils.llm import get_llm
@@ -14,8 +13,8 @@ class JDParserAgent:
         self._cache = cache
 
     def run(self, jd_text: str) -> JDRequirements:
-        jd_hash = hashlib.sha256(jd_text.encode()).hexdigest()
         cache_key = ExtractionCache.make_key(jd_text, prefix="jd")
+        jd_hash = cache_key.split(":", 1)[1]
 
         if self._cache:
             cached = self._cache.get(cache_key)

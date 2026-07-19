@@ -377,7 +377,7 @@ After Phase 3, every \texttt{evidence\_chain} item is verified by the
   \item \textbf{Inferred}: not verbatim but semantically grounded—the maximum
         cosine similarity between the all-MiniLM-L6-v2 embedding of the quote
         and any individual sentence in the CV text exceeds threshold $\phi$
-        (default 0.90):
+        (default 0.85):
         \begin{equation}
           \max_{s_j \in \mathcal{S}(\text{cv})}
             \cos\bigl(\mathbf{e}_{\text{quote}},\; \mathbf{e}_{s_j}\bigr) > \phi
@@ -462,7 +462,7 @@ and per-candidate score variance are reported.
 
 The borderline-pair threshold is environment-configurable via
 \texttt{BORDERLINE\_SCORE\_THRESHOLD} (default 5.0). The hallucination similarity
-threshold $\phi$ is fixed at 0.90 in the checker module. The pipeline runs entirely
+threshold $\phi$ is fixed at 0.85 in the checker module. The pipeline runs entirely
 on local hardware using Ollama-served models, requiring no cloud API
 access—an important property for organisations with data-sovereignty requirements.
 

@@ -40,12 +40,12 @@ def _render_candidate_block(
         f"- Current Title: {bi.current_title or 'N/A'}",
         "",
         "#### Skills",
-        "| Canonical Skill | Raw Mention | Proficiency | Evidence Quote |",
-        "|---|---|---|---|",
+        "| Skill | Proficiency | Evidence Quote |",
+        "|---|---|---|",
     ]
     for s in profile.skills:
         lines.append(
-            f"| {s.canonical_skill} | {s.raw_mention} | {s.proficiency} | {s.evidence_quote} |"
+            f"| {s.raw_mention} | {s.proficiency} | {s.evidence_quote} |"
         )
 
     lines += ["", "#### Education",

@@ -91,11 +91,6 @@ def test_ranking_json_is_valid():
 
 
 def test_report_md_contains_eliminated_section_when_candidates_filtered():
-    from src.models.schemas import (
-        FinalRanking, RankedCandidate, CandidateAssessment,
-        EvidenceItem, CandidateProfile, CandidateBasicInfo,
-        JDRequirements, EducationRequirement,
-    )
     profile = CandidateProfile(
         candidate_id="cv_001",
         basic_info=CandidateBasicInfo(full_name="Ahmad Faris", email=None,
@@ -124,7 +119,6 @@ def test_report_md_contains_eliminated_section_when_candidates_filtered():
         domain_expertise=[], leadership_expected=True,
         soft_skills=[], industry_context="IT", raw_jd_hash="abc",
     )
-    from src.graph.state import ATSState
     state = ATSState(
         jd_raw="Engineer JD",
         jd_structured=jd,

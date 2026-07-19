@@ -21,15 +21,13 @@ def test_jd_requirements_rejects_invalid_seniority():
         )
 
 
-def test_skill_entry_has_raw_and_canonical():
+def test_skill_entry_has_raw_mention():
     entry = SkillEntry(
         raw_mention="postgres",
-        canonical_skill="PostgreSQL",
         proficiency="advanced",
         evidence_quote="managed postgres cluster",
     )
     assert entry.raw_mention == "postgres"
-    assert entry.canonical_skill == "PostgreSQL"
 
 
 def test_skill_match_result_structure():
