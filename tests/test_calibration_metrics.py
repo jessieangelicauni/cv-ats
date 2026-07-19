@@ -30,6 +30,9 @@ def test_mean_abs_delta_computed_correctly():
     # deltas: 4, 4, -9 → abs: 4, 4, 9 → mean = 17/3
     assert abs(report["mean_abs_delta"] - 17/3) < 0.01
 
-def test_rank_changes_counts_nonzero_deltas():
+def test_rank_changes_counts_position_changes():
+    # raw ranks: cv_001=1, cv_002=2, cv_003=3
+    # calibrated ranks: cv_001=1, cv_003=2, cv_002=3
+    # cv_002 and cv_003 swapped → 2 rank changes
     report = calibration_report(_make_assessments(), _make_ranking())
-    assert report["rank_changes"] == 3
+    assert report["rank_changes"] == 2

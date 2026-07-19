@@ -98,7 +98,7 @@ class EvidenceItem(BaseModel):
 class HallucinationFlag(BaseModel):
     candidate_id: str
     claim: str
-    status: Literal["supported", "inferred", "fabricated", "acknowledged_gap"]
+    status: Literal["inferred", "fabricated", "acknowledged_gap"]
     source_quote: str | None = None
 
 

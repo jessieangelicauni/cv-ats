@@ -1,12 +1,9 @@
 %% IEEE Transactions LaTeX template (IEEEtran class)
 %% Target: IEEE Transactions on Knowledge and Data Engineering (TKDE)
 %%         or IEEE Access — Q1 Scopus
-\documentclass[journal,compsoc]{IEEEtran}
+\documentclass[journal]{IEEEtran}
 
 \usepackage{cite}
-\usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
-\usepackage{algorithm}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
@@ -23,14 +20,13 @@
 Multi-Phase LLM Pipeline for Hallucination-Aware\\
 IT Candidate Ranking}
 
-\author{Jessie~Angelica%
-\IEEEcompsocitemizethanks{
-  \IEEEcompsocthanksitem Manuscript submitted to IEEE Access. \hfil\break
-  Corresponding author e-mail: jessieangelica21@gmail.com.
-}}
+\author{Jessie~Angelica$^{1}$, Hasanul~Fahmi~Zuhri$^{1,2}$\\[4pt]
+$^{1}$Faculty of Computer Science, President University, Bekasi, Indonesia\\[2pt]
+$^{2}$Faculty of Artificial Intelligence \& Frontier Technologies,
+UNITAR International University, Malaysia}
 
 \markboth{IEEE Access, Vol.~14, 2026}%
-{Angelica: EvidenceRank: An Evidence-Grounded LLM Pipeline for IT Candidate Ranking}
+{Angelica \textit{et al.}: EvidenceRank: An Evidence-Grounded LLM Pipeline for IT Candidate Ranking}
 
 \maketitle
 
@@ -46,9 +42,9 @@ repeated LLM calls has not been systematically quantified. We present
 addresses all three limitations simultaneously for IT recruitment. The system
 introduces (1) an \emph{evidence-chain grounding}
 constraint requiring every dimension score to cite a verbatim text quote, backed by
-post-hoc semantic verification using all-MiniLM-L6-v2; (2) a \emph{semantic skill
-pre-filter} that eliminates candidates lacking required-skill matches through exact
-canonical name matching after LLM-based skill normalisation, before expensive LLM judging; and (3) a \emph{pool-aware holistic
+post-hoc semantic verification using bge-small-en-v1.5; (2) a \emph{semantic skill
+pre-filter} that eliminates candidates with no required-skill embedding match
+(bge-small-en-v1.5, cosine threshold 0.80) before expensive LLM judging; and (3) a \emph{pool-aware holistic
 calibration} phase that resolves borderline pairs through comparative reasoning.
 \end{abstract}
 
@@ -108,13 +104,13 @@ To address these three problems, we make the following contributions:
   \item We propose an \textbf{evidence-chain grounding protocol}: every
         LLM-generated dimension score must be accompanied by a verbatim quote
         from the candidate profile. A post-hoc hallucination checker using
-        all-MiniLM-L6-v2 cosine similarity classifies each claim as
-        \textit{supported}, \textit{inferred}, \textit{fabricated}, or
+        bge-small-en-v1.5 cosine similarity classifies each claim as
+        \textit{inferred}, \textit{fabricated}, or
         \textit{acknowledged\_gap}.
 
-  \item We implement a \textbf{semantic skill pre-filter} using LLM-normalised
-        exact canonical name matching that eliminates candidates with no
-        required-skill overlap before LLM judging, reducing unnecessary LLM invocations.
+  \item We implement a \textbf{semantic skill pre-filter} using bge-small-en-v1.5
+        embedding cosine similarity (threshold 0.80) that eliminates candidates with
+        no required-skill match before LLM judging, reducing unnecessary LLM invocations.
 
   \item We quantify \textbf{ranking stability} using Kendall's $\tau$ across
         three repeated pipeline runs, providing the first reported consistency
@@ -219,8 +215,8 @@ assessment claims against source text post-generation \cite{chowdhury2026,
 jahan2026, hoque2026}.
 
 \textbf{G3 — Coarse-grained skill matching:} Skill alignment uses full-document
-similarity or rigid ontologies; no paper applies LLM-normalised exact canonical
-name matching as a targeted per-skill pre-filter \cite{alonso2025, ajjam2026}.
+similarity or rigid ontologies; no paper applies an embedding cosine similarity
+threshold as a mandatory per-skill pre-filter gate before LLM judging \cite{alonso2025, ajjam2026}.
 
 \textbf{G4 — Pool-blind scoring:} Individual candidate scores are assigned without
 comparative pool awareness or borderline resolution \cite{hoque2026,
@@ -242,8 +238,8 @@ EvidenceRank directly addresses all remaining gaps.
 EvidenceRank processes a job description (JD) and a set of candidate CVs
 through a sequential four-phase pipeline. Fig.~\ref{fig:architecture} illustrates
 the full system. Each phase is implemented as a dedicated agent with its own
-prompt and Pydantic-validated output schema. A shared all-MiniLM-L6-v2 singleton provides embeddings to the post-hoc
-hallucination checker. All intermediate state is carried in a typed \texttt{ATSState} model.
+prompt and Pydantic-validated output schema. A shared bge-small-en-v1.5 singleton provides embeddings for both the skill
+pre-filter and the post-hoc hallucination checker. All intermediate state is carried in a typed \texttt{ATSState} model.
 
 \begin{figure}[!t]
 \centering
@@ -258,13 +254,13 @@ hallucination checker. All intermediate state is carried in a typed \texttt{ATSS
 ]
 
 \node[box] (p1) {Phase 1\\JD Parser\\(Small LLM)};
-\node[box, below=of p1] (p2) {Phase 2\\CV Extractor\\(Small LLM $\times$2)};
-\node[box, below=of p2] (prefilter) {Pre-Filter\\Exact-Match\\Skill Filter};
+\node[box, below=of p1] (p2) {Phase 2\\CV Extractor\\(Small LLM)};
+\node[box, below=of p2] (prefilter) {Pre-Filter\\Embedding\\Skill Filter};
 \node[box, below=of prefilter] (p3) {Phase 3\\Candidate Judge\\(Large LLM)};
 \node[box, below=of p3] (p4) {Phase 4\\Pool Calibrator\\(Large LLM)};
 
-\node[subbox, right=1.6cm of p3] (skills) {Skill Coverage\\Table (Exact\\Match)};
-\node[subbox, right=1.6cm of p4] (hcheck) {Hallucination\\Checker\\(MiniLM)};
+\node[subbox, right=1.6cm of p3] (skills) {Skill Coverage\\Table\\(Embedding)};
+\node[subbox, right=1.6cm of p4] (hcheck) {Hallucination\\Checker\\(bge-small)};
 
 \draw[arrow] (p1) -- (p2);
 \draw[arrow] (p2) -- (prefilter);
@@ -300,35 +296,27 @@ in a SQLite cache (\texttt{ExtractionCache}) keyed on the content hash.
 \subsection{Phase 2: Structured CV Extraction}
 \label{subsec:phase2}
 
-Phase 2 extracts structured candidate data from each raw CV text through two
-sequential LLM calls. The first (\texttt{SYSTEM\_2A}) extracts a structured
-\texttt{CandidateProfile} with strict verbatim quoting:
-achievement strings must be exact quotes from the CV, tenure months computed
-precisely from dates, and skill names recorded as-is without inference. The second
-call (\texttt{SYSTEM\_2B}) normalises raw skill mentions to canonical forms (e.g.,
-``postgre'' $\to$ ``PostgreSQL'', ``k8s'' $\to$ ``Kubernetes'') using a dedicated
-\texttt{SkillNormalizationMap}.
+Phase 2 extracts structured candidate data from each raw CV text through a single
+LLM call with strict verbatim quoting: achievement strings must be exact quotes
+from the CV, tenure months computed precisely from dates, and skill names recorded
+exactly as written without normalisation or inference. Each \texttt{SkillEntry}
+stores the raw skill mention, proficiency level, and a verbatim evidence quote.
 
 \subsection{Semantic Skill Pre-Filter}
 \label{subsec:prefilter}
 
-Between Phase 2 and Phase 3, a pre-judge filter eliminates candidates who share
-no required skill name with the JD after LLM-based normalisation.
+Between Phase 2 and Phase 3, a pre-judge filter eliminates candidates with no
+required-skill embedding match before any LLM judging call.
 
-Both the JD skill names (Phase 1) and CV skill names (Phase 2B) are normalised
-to canonical forms by the same LLM prompt before the filter runs—so ``k8s'' and
-``Kubernetes'' converge to the same string. The filter then computes the set
-intersection:
-\begin{equation}
-  \mathcal{R} \cap \mathcal{C}_i \neq \emptyset
-  \label{eq:filter}
-\end{equation}
-where $\mathcal{R} = \{r_1, \ldots, r_m\}$ is the set of required skill names
-from the JD and $\mathcal{C}_i = \{s_1, \ldots, s_n\}$ is the set of canonical
-skill names extracted from candidate $i$'s CV. A candidate is \emph{eliminated}
-if the intersection is empty—that is, they share no required skill name after
-normalisation. This conservative filter avoids false negatives: only candidates
-with zero required-skill overlap are removed. Eliminated candidates are recorded
+Each JD required skill string is encoded with \texttt{bge-small-en-v1.5} and
+compared against all candidate skill mentions via cosine similarity. A candidate
+passes the filter if at least one required skill scores at or above the threshold
+of 0.80. This threshold is tighter than the 0.6 commonly used in embedding matchers,
+reducing false positives while still handling semantic variants
+(e.g., ``ML'' and ``Machine Learning'', ``k8s'' and ``Kubernetes'').
+A candidate is \emph{eliminated} if no required skill reaches the threshold.
+This conservative filter avoids false negatives: only candidates with zero
+required-skill semantic overlap are removed. Eliminated candidates are recorded
 in \texttt{ATSState.eliminated\_candidates} and appear in the final report under
 a ``Filtered Candidates'' section.
 
@@ -342,7 +330,7 @@ senior technical recruiter. The phase receives two inputs:
 \begin{enumerate}
   \item The structured \texttt{CandidateProfile} from Phase 2 (JSON).
   \item \textbf{Skill coverage table}: a Markdown table of all JD skills with
-        their best candidate match and exact-match score.
+        their best candidate match and embedding cosine similarity score.
 \end{enumerate}
 
 The prompt enforces the \textbf{Evidence Rule}: every item in
@@ -369,39 +357,27 @@ company experience as a signal of large-scale system exposure.
 
 After Phase 3, every \texttt{evidence\_chain} item is verified by the
 \texttt{HallucinationChecker} module. For each dimension assessment, the
-\texttt{evidence\_quote} field is classified into one of four statuses:
+\texttt{evidence\_quote} field is classified into one of three statuses:
 
 \begin{enumerate}
-  \item \textbf{Supported}: verbatim match found in the raw CV text
-        (\texttt{quote in raw\_cv\_text}).
-  \item \textbf{Inferred}: not verbatim but semantically grounded—the maximum
-        cosine similarity between the all-MiniLM-L6-v2 embedding of the quote
-        and any individual sentence in the CV text exceeds threshold $\phi$
-        (default 0.85):
-        \begin{equation}
-          \max_{s_j \in \mathcal{S}(\text{cv})}
-            \cos\bigl(\mathbf{e}_{\text{quote}},\; \mathbf{e}_{s_j}\bigr) > \phi
-          \label{eq:hallucination_threshold}
-        \end{equation}
-        where $\mathcal{S}(\text{cv})$ is the set of sentences produced by
-        splitting the raw CV text on sentence-boundary punctuation and newlines.
-        Sentence-level comparison is used rather than a single full-document
-        vector because encoding a complete CV as one embedding produces a diffuse
+  \item \textbf{Inferred}: semantically grounded—the maximum cosine similarity
+        between the bge-small-en-v1.5 embedding of the quote and any segment in
+        the CV text exceeds 0.85. The CV text is split on exclamation marks,
+        question marks, and newlines (not periods, to avoid false splits on
+        abbreviations); each segment is encoded separately. Segment-level
+        comparison is used rather than a single full-document vector because
+        encoding a complete CV as one embedding produces a diffuse
         representation that degrades cosine scores for short phrases.
-  \item \textbf{Fabricated}: similarity below $\phi$; claim is not traceable to
-        the source.
+  \item \textbf{Fabricated}: similarity at or below 0.85; claim is not
+        traceable to any CV segment.
   \item \textbf{Acknowledged gap}: the LLM correctly set
         \texttt{evidence\_quote = "NOT FOUND IN CV"}.
 \end{enumerate}
 
-The hallucination rate is defined as:
-\begin{equation}
-  H = \frac{F}{F + S + I}
-  \label{eq:hallucination_rate}
-\end{equation}
-where $F$, $S$, and $I$ are counts of fabricated, supported, and inferred claims,
-respectively (acknowledged gaps are excluded from the denominator as they are
-correct behaviour). This metric is reported per run.
+The hallucination rate is the proportion of fabricated claims among all verifiable
+claims: the fabricated count divided by the sum of fabricated and inferred counts.
+Acknowledged gaps are excluded from the denominator as they represent correct
+model behaviour. This metric is reported per run.
 
 \subsection{Phase 4: Pool-Aware Holistic Calibration}
 \label{subsec:phase4}
@@ -449,20 +425,14 @@ scores, reporting standard deviation, mean absolute delta, and rank change count
 
 \textbf{Consistency experiment} runs the pipeline $N$ times on the same
 JD/CV set with temperature $> 0$ to quantify ranking instability. Pairwise
-Kendall's $\tau$ is computed across all run pairs:
-\begin{equation}
-  \tau = \frac{C - D}{\binom{n}{2}}
-  \label{eq:kendall}
-\end{equation}
-where $C$ is the number of concordant pairs, $D$ is the number of discordant
-pairs, and $n$ is the number of candidates. Mean $\tau$ across all pairs of runs
-and per-candidate score variance are reported.
+Kendall's $\tau$ is computed across all run pairs as the normalised difference
+between concordant and discordant candidate pairs. Mean $\tau$ across all run
+pairs and per-candidate score variance are reported.
 
 \subsection{System Configuration}
 
 The borderline-pair threshold is environment-configurable via
-\texttt{BORDERLINE\_SCORE\_THRESHOLD} (default 5.0). The hallucination similarity
-threshold $\phi$ is fixed at 0.85 in the checker module. The pipeline runs entirely
+\texttt{BORDERLINE\_SCORE\_THRESHOLD} (default 5.0). The hallucination cosine similarity threshold is fixed at 0.85 in the checker module. The pipeline runs entirely
 on local hardware using Ollama-served models, requiring no cloud API
 access—an important property for organisations with data-sovereignty requirements.
 
@@ -488,9 +458,8 @@ requiring external annotation.
 \subsection{Evaluation Metrics}
 
 \begin{enumerate}
-  \item \textbf{Hallucination rate} $H$ (Equation~\ref{eq:hallucination_rate}):
-        Proportion of evidence claims classified as fabricated by the post-hoc
-        MiniLM cosine checker.
+  \item \textbf{Hallucination rate}: Proportion of evidence claims classified as
+        fabricated by the post-hoc bge-small-en-v1.5 cosine checker.
   \item \textbf{Score standard deviation}: Spread of calibrated scores across
         candidates, indicating discriminative power.
   \item \textbf{Kendall's $\tau$}: Pairwise rank correlation across repeated
@@ -500,8 +469,8 @@ requiring external annotation.
 \subsection{Implementation Details}
 
 EvidenceRank is implemented in Python 3.11 using LangChain (v1.3.13+) for LLM
-orchestration, sentence-transformers (v5.6+) with \texttt{all-MiniLM-L6-v2} for
-hallucination-check embeddings, and Pydantic v2 for schema validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-model
+orchestration, sentence-transformers (v5.6+) with \texttt{bge-small-en-v1.5} for skill-matching
+and hallucination-check embeddings, and Pydantic v2 for schema validation. Small-model tasks (Phases 1 and 2) use \texttt{qwen2.5:7b}; large-model
 tasks (Phases 3 and 4) use \texttt{llama3.3:70b} (Q4\_K\_M quantisation).
 
 
@@ -515,16 +484,16 @@ constitute EvidenceRank's primary scientific contributions:
 
 \textbf{N1 — Evidence-Chain Hallucination Grounding with Post-Hoc Verification (G1):}
 The mandatory evidence-chain protocol—requiring verbatim citation for every
-dimensional score, with post-hoc MiniLM cosine similarity classification into four
+dimensional score, with post-hoc bge-small-en-v1.5 cosine similarity classification into four
 semantic categories—is a novel quality assurance layer absent from all reviewed
 frameworks \cite{chowdhury2026,jahan2026,hoque2026,yuksel2026}.
 
-\textbf{N2 — LLM-Normalised Exact-Match Skill Pre-Filter (G3):}
-After both JD and CV skill names are normalised to canonical forms by the same LLM
-prompt, a Python set intersection on the resulting canonical name strings eliminates
-candidates with no required-skill overlap before LLM judging. This inter-normalised
-exact matching provides targeted required-skill coverage verification that reduces
-unnecessary LLM invocations.
+\textbf{N2 — Embedding-Based Skill Pre-Filter as Mandatory Cost Gate (G3):}
+A bge-small-en-v1.5 embedding cosine similarity check (threshold 0.80) is applied
+as a mandatory gate before Phase 3 LLM judging. Candidates with no required-skill
+embedding match are eliminated without consuming any LLM calls. This architectural
+role—a calibrated embedding pre-filter that enforces a cost boundary between cheap
+extraction and expensive judging—is not found in any reviewed paper.
 
 \textbf{N3 — Pool-Aware Holistic Calibration with Borderline Pair Reasoning (G4):}
 The Phase 4 pool calibrator is the first module in the reviewed literature to
@@ -544,8 +513,8 @@ tracking pipeline.
 We presented EvidenceRank, a four-phase multi-agent LLM pipeline for IT candidate
 ranking that simultaneously addresses hallucination, pool-blind scoring, and
 ranking instability—three critical gaps unresolved by existing literature.
-The architecture integrates evidence-chain grounding, LLM-normalised
-exact-match skill pre-filtering, and pool-aware calibration.
+The architecture integrates evidence-chain grounding, embedding-based skill
+pre-filtering, and pool-aware calibration.
 
 The key insight is that hallucination in LLM assessment pipelines is not solely an
 intrinsic model deficiency but an architectural one: by enforcing verbatim evidence
@@ -559,13 +528,13 @@ the fabrication rate is reduced without relying on the model's parametric memory
         across multiple industry domains, with professionally annotated ground
         truth to enable statistically robust comparison with \cite{chowdhury2026}.
 
-  \item \textbf{Adaptive hallucination thresholds}: The cosine threshold $\phi$
-        in Equation~\ref{eq:hallucination_threshold} is currently fixed; a
-        calibrated per-domain threshold learned from annotated data would reduce
-        false-positive fabrication flags on paraphrased claims.
+  \item \textbf{Adaptive hallucination thresholds}: The hallucination cosine
+        threshold of 0.85 is currently fixed; a calibrated per-domain threshold
+        learned from annotated data would reduce false-positive fabrication flags
+        on paraphrased claims.
 
-  \item \textbf{Graph-augmented skill matching}: Replacing the flat exact-match
-        skill pre-filter with a skill ontology graph (e.g., ESCO, O*NET as in
+  \item \textbf{Graph-augmented skill matching}: Augmenting the embedding skill
+        pre-filter with a skill ontology graph (e.g., ESCO, O*NET as in
         \cite{alonso2025}) would handle hierarchical skill relationships
         (e.g., ``Kubernetes'' as a specialisation of ``container orchestration'')
         that exact string matching misses.
@@ -587,7 +556,7 @@ the fabrication rate is reduced without relying on the model's parametric memory
 \end{enumerate}
 
 EvidenceRank demonstrates that rigorous architectural choices—evidence-chain
-constraints, normalised exact-match skill pre-filtering, and pool-aware calibration—can
+constraints, embedding-based skill pre-filtering, and pool-aware calibration—can
 substantially close the gap between LLM-based and human-expert recruitment
 quality, while simultaneously providing the transparency and auditability required
 for responsible deployment in high-stakes hiring decisions.

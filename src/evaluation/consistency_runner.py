@@ -29,10 +29,12 @@ def run_consistency_experiment(
         for i, j in combinations(range(n_runs), 2)
     ]
 
-    candidate_ids = list(score_maps[0].keys())
+    common_ids = set(score_maps[0].keys())
+    for sm in score_maps[1:]:
+        common_ids &= set(sm.keys())
     score_variance = {
-        cid: float(np.var([sm.get(cid, 0) for sm in score_maps]))
-        for cid in candidate_ids
+        cid: float(np.var([sm[cid] for sm in score_maps]))
+        for cid in common_ids
     }
 
     return {
