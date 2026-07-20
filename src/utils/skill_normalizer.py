@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from sentence_transformers import util
 from src.models.schemas import SkillRequirement, SkillEntry, SkillMatchResult
 from src.utils.embedder import get_embedder
@@ -7,12 +8,24 @@ import config
 
 _cv_emb_cache: dict[tuple[str, ...], object] = {}
 
+_SKILL_SPLIT_RE = re.compile(r"[,;/|]|\band\b")
+
+
+def _split_skill_mentions(profile_skills: list[SkillEntry]) -> list[str]:
+    names: list[str] = []
+    for entry in profile_skills:
+        for part in _SKILL_SPLIT_RE.split(entry.raw_mention):
+            part = part.strip()
+            if part:
+                names.append(part)
+    return names
+
 
 def compute_skill_matches(
     jd_skills: list[SkillRequirement],
     profile_skills: list[SkillEntry],
 ) -> list[SkillMatchResult]:
-    candidate_names = [s.raw_mention for s in profile_skills]
+    candidate_names = _split_skill_mentions(profile_skills)
 
     if not candidate_names:
         return [
