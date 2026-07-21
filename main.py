@@ -12,7 +12,6 @@ from src.output.report_generator import generate_report
 from src.evaluation.hallucination_checker import verify_evidence_chain, hallucination_rate
 from src.evaluation.calibration_metrics import calibration_report
 from src.evaluation.consistency_runner import run_consistency_experiment
-import config
 
 app = typer.Typer()
 console = Console()

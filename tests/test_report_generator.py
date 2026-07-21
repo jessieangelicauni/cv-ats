@@ -50,7 +50,7 @@ def _make_state() -> ATSState:
         run_id="test_run_001",
         trace_log=[{"phase": 1, "duration_s": 1.2}],
         hallucination_flags=[HallucinationFlag(candidate_id="cv_001",
-                                               claim="Strong Python.", status="supported",
+                                               claim="Strong Python.", status="inferred",
                                                source_quote="Python dev")],
         use_cache=False,
     )

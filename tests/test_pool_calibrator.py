@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 from src.agents.pool_calibrator import PoolCalibratorAgent
 from src.models.schemas import (
-    FinalRanking, PoolCalibrationResult, CalibratedEntry, BorderlinePairByPosition,
+    FinalRanking, PoolCalibrationResult, CalibratedEntry,
     CandidateAssessment, EvidenceItem, JDRequirements, EducationRequirement,
 )
 

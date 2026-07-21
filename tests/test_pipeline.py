@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from src.graph.pipeline import run_pipeline
 from src.models.schemas import (
     JDRequirements, EducationRequirement,

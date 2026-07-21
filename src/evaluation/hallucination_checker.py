@@ -4,7 +4,6 @@ from sentence_transformers import util
 from src.models.schemas import CandidateAssessment, HallucinationFlag
 from src.utils.embedder import get_embedder
 
-
 SIMILARITY_THRESHOLD = 0.85
 MAX_WINDOW_LINES = 4
 
