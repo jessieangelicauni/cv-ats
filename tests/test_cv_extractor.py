@@ -77,10 +77,63 @@ def test_cv_extractor_preserves_raw_mentions():
     assert postgres_skill.raw_mention == "postgres"
 
 
+def test_agent_run_overrides_llm_candidate_id_with_provided_id():
+    # Regression test for the Daniel Adif Nugroho Resume.pdf case: when the
+    # file-derived candidate_id looks like a real name, the small extraction model
+    # "cleans it up" (e.g. drops "Resume") instead of copying it verbatim, silently
+    # breaking traceability back to the source file. candidate_id must always be
+    # the value the caller passed in, never whatever the LLM decided to return.
+    mock_profile = _make_mock_profile()
+    mock_profile.candidate_id = "Daniel Adif Nugroho"  # LLM "cleaned up" the id
+    mock_extract_llm = MagicMock()
+    mock_extract_llm.invoke.return_value = mock_profile
+
+    with patch("src.agents.cv_extractor.get_llm", return_value=mock_extract_llm):
+        agent = CVExtractorAgent()
+        result = agent.run({
+            "raw_text": SAMPLE_CV,
+            "candidate_id": "Daniel Adif Nugroho Resume",
+            "source_file": "Daniel Adif Nugroho Resume.pdf",
+        })
+
+    assert result.candidate_id == "Daniel Adif Nugroho Resume"
+
+
+def test_agent_run_overrides_candidate_id_on_cache_hit_too():
+    # A stale cache entry (written under an older candidate_id, or another file
+    # with identical text) must not leak its candidate_id back out either — the
+    # override has to apply on both the cache-hit and cache-miss paths.
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = _make_mock_profile().model_dump()  # cached under "cv_001"
+
+    with patch("src.agents.cv_extractor.get_llm"):
+        agent = CVExtractorAgent(cache=mock_cache)
+        result = agent.run({
+            "raw_text": SAMPLE_CV,
+            "candidate_id": "Daniel Adif Nugroho Resume",
+            "source_file": "Daniel Adif Nugroho Resume.pdf",
+        })
+
+    assert result.candidate_id == "Daniel Adif Nugroho Resume"
+
+
 def test_human_2a_includes_reference_date():
     fixed_date = date(2026, 1, 15)
     with patch("src.prompts.cv_extractor.date") as mock_date:
         mock_date.today.return_value = fixed_date
-        result = human_2a("CV text here", "cv_001")
+        result = human_2a("CV text here")
 
     assert "REFERENCE DATE: 2026-01-15" in result
+
+
+def test_human_2a_does_not_leak_candidate_id_hint():
+    # Regression test: embedding the file-derived candidate_id in the prompt
+    # biases the extraction model into treating it as the person's name. When the
+    # id looks like a real name (e.g. "Daniel Adif Nugroho Resume", derived from
+    # the source filename), the model skips basic_info.full_name entirely, as if
+    # the name were already captured elsewhere — confirmed via reproduction:
+    # swapping the id hint for a neutral placeholder fixed full_name extraction.
+    # candidate_id is assigned deterministically in code after extraction, so the
+    # model never needs to see it.
+    result = human_2a("CV text here")
+    assert "CANDIDATE_ID" not in result

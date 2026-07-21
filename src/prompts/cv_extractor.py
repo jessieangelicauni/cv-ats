@@ -13,10 +13,9 @@ on the reference date provided below. If dates are missing, set null — never e
 Return a valid JSON object matching the required schema exactly."""
 
 
-def human_2a(cv_text: str, candidate_id: str) -> str:
+def human_2a(cv_text: str) -> str:
     return (
         f"Extract structured profile from the following resume.\n\n"
-        f"CANDIDATE_ID: {candidate_id}\n\n"
         f"REFERENCE DATE: {date.today().isoformat()}\n\n"
         f"RESUME TEXT:\n{cv_text}"
     )

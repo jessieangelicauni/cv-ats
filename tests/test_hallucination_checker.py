@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from src.evaluation.hallucination_checker import verify_evidence_chain, hallucination_rate
 from src.models.schemas import CandidateAssessment, EvidenceItem, HallucinationFlag
 
@@ -115,3 +116,24 @@ def test_spliced_quote_with_one_fabricated_half_is_still_fabricated():
     assessment = _make_assessment([quote])
     flags = verify_evidence_chain(assessment, MULTI_JOB_CV)
     assert flags[0].status == "fabricated"
+
+
+def test_ellipsis_spliced_quote_from_two_nonadjacent_real_bullets_is_not_fabricated():
+    # Regression test for the Daniel Adif Nugroho Resume.pdf case: the judge joined
+    # two real bullets from two different job entries with "..." instead of "; ".
+    # The "; " splice fallback doesn't recognize this separator, so both halves
+    # verifying independently was never checked and the whole quote fell through
+    # to fabricated even though each half is a true, verbatim CV fact.
+    #
+    # _max_window_similarity is forced to 0.0 so the whole-quote semantic-similarity
+    # fallback can't rescue this on its own (it otherwise scores this short fixture
+    # CV's text high enough to mask whether the splice-detection path even runs) —
+    # this isolates the "..."-splice-detection logic the fix must add.
+    quote = (
+        "Designed and implemented infrastructure as code using Buildah, managing 100+ servers... "
+        "Built CI/CD pipelines using Helm, reducing deployment time from 29s to 491ms"
+    )
+    assessment = _make_assessment([quote])
+    with patch("src.evaluation.hallucination_checker._max_window_similarity", return_value=0.0):
+        flags = verify_evidence_chain(assessment, MULTI_JOB_CV)
+    assert flags[0].status == "inferred"

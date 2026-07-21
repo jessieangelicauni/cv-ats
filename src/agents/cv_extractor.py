@@ -20,12 +20,19 @@ class CVExtractorAgent:
         if self._cache:
             cached = self._cache.get(cache_key)
             if cached:
-                return CandidateProfile.model_validate(cached)
+                profile = CandidateProfile.model_validate(cached)
+                profile.candidate_id = candidate_id
+                return profile
 
         profile: CandidateProfile = self._extract_llm.invoke(
             [SystemMessage(content=prompts.SYSTEM_2A),
-             HumanMessage(content=prompts.human_2a(cv_text, candidate_id))]
+             HumanMessage(content=prompts.human_2a(cv_text))]
         )
+        # candidate_id is assigned deterministically by the caller (main.py, from the
+        # source filename) and must never be rewritten by the model: when the file
+        # name looks like a real person's name, the model "cleans it up" to match the
+        # name it extracts, silently breaking traceability back to the source file.
+        profile.candidate_id = candidate_id
 
         if self._cache:
             self._cache.set(cache_key, profile.model_dump())
