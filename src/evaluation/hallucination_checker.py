@@ -36,6 +36,24 @@ def _max_window_similarity(quote: str, full_text: str) -> float:
     return float(scores.max())
 
 
+def _verify_single_span(quote: str, raw_cv_text: str, normalized_raw: str) -> bool:
+    if _normalize_for_containment(quote) in normalized_raw:
+        return True
+    return _max_window_similarity(quote, raw_cv_text) > SIMILARITY_THRESHOLD
+
+
+def _all_parts_verified(quote: str, raw_cv_text: str, normalized_raw: str) -> bool:
+    # The judge is instructed never to splice separate CV bullets into one quote
+    # with "; ", but it does so occasionally. When it does, each half is often a
+    # real, verbatim fact — just not adjacent enough to pass as one contiguous
+    # excerpt. Verify each half independently before giving up on the quote.
+    parts = [p.strip() for p in quote.split("; ")]
+    return all(
+        part and _verify_single_span(part, raw_cv_text, normalized_raw)
+        for part in parts
+    )
+
+
 def verify_evidence_chain(
     assessment: CandidateAssessment,
     raw_cv_text: str,
@@ -48,10 +66,9 @@ def verify_evidence_chain(
 
         if quote == "NOT FOUND IN CV":
             status = "acknowledged_gap"
-        elif _normalize_for_containment(quote) in normalized_raw:
-            # Verbatim modulo whitespace/line-break differences from PDF layout.
+        elif _verify_single_span(quote, raw_cv_text, normalized_raw):
             status = "inferred"
-        elif _max_window_similarity(quote, raw_cv_text) > SIMILARITY_THRESHOLD:
+        elif "; " in quote and _all_parts_verified(quote, raw_cv_text, normalized_raw):
             status = "inferred"
         else:
             status = "fabricated"
