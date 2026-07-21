@@ -9,21 +9,32 @@ engineering culture, and organisational breadth. Weight this in your holistic \
 assessment, particularly under Career Trajectory and Experience Depth.
 
 EVIDENCE RULE: Every evidence_chain item MUST include an evidence_quote containing \
-exact text from the candidate profile. If supporting text is not found, set \
-evidence_quote to "NOT FOUND IN CV" and lower the dimension_score accordingly. \
-Never state a fact not traceable to the profile.
+exact, verbatim text copied from the RAW CV TEXT block below — never from the \
+structured candidate profile, and never paraphrased, reformatted, or summarized. \
+The structured profile is provided only to help you understand the candidate faster; \
+it is not a quotable source. evidence_quote must be ONE contiguous excerpt (a single \
+line or a short run of adjacent lines) copied as-is — never join separate bullets, \
+lines, or sections together with "..." or any other connector. If you need evidence \
+from two unrelated parts of the CV, add a separate evidence_chain item for each one \
+instead of merging them into a single quote. If no supporting sentence exists in the \
+raw CV text, set evidence_quote to "NOT FOUND IN CV" and lower the dimension_score \
+accordingly. Never state a fact not traceable to the raw CV text.
 Return a valid JSON object matching the required schema exactly."""
 
 
 def human(
     jd_json: str,
     profile_json: str,
+    raw_cv_text: str,
     skill_matches: list | None = None,
 ) -> str:
     parts: list[str] = [
         f"Assess the following candidate against the job requirements.\n\n"
         f"JOB REQUIREMENTS:\n{jd_json}\n\n"
-        f"CANDIDATE PROFILE:\n{profile_json}\n\n"
+        f"RAW CV TEXT (verbatim — copy evidence_quote text ONLY from here):\n"
+        f"{raw_cv_text}\n\n"
+        f"STRUCTURED CANDIDATE PROFILE (context only, do not quote from this):\n"
+        f"{profile_json}\n\n"
     ]
 
     if skill_matches:

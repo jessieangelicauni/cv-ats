@@ -26,14 +26,18 @@ def phase2_cv_extractor(
 def phase3_candidate_judge(
     profiles: list[CandidateProfile],
     jd: JDRequirements,
+    cv_raws: list[dict],
 ) -> list[CandidateAssessment]:
+    raw_text_by_id = {cv["candidate_id"]: cv["raw_text"] for cv in cv_raws}
+
     def process(profile: CandidateProfile) -> CandidateAssessment:
         skill_matches = compute_skill_matches(
             jd.required_skills + jd.preferred_skills,
             profile.skills,
         )
+        raw_cv_text = raw_text_by_id.get(profile.candidate_id, "")
         return CandidateJudgeAgent().run(
-            profile, jd, skill_matches=skill_matches or None
+            profile, jd, raw_cv_text, skill_matches=skill_matches or None
         )
 
     return [process(profile) for profile in profiles]
