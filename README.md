@@ -62,7 +62,7 @@ Module layout under `src/`:
 
    ```bash
    ollama pull qwen2.5:7b     # extraction phase (2) — ~6 GB VRAM
-   ollama pull llama3.3:70b   # judge + calibration phases (3–4) — ~48 GB VRAM, or use a Q4 quant
+   ollama pull qwen3:14b   # judge + calibration phases (3–4) — ~48 GB VRAM, or use a Q4 quant
    ```
 
    The MiniLM embedding model (`all-MiniLM-L6-v2`) is downloaded automatically from

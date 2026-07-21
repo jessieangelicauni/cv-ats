@@ -45,3 +45,32 @@ def test_hallucination_rate_calculated_correctly():
     ]
     # fabricated=1 / (inferred=2 + fabricated=1) = 1/3
     assert abs(hallucination_rate(flags) - 1/3) < 1e-6
+
+
+def test_verbatim_quote_from_raw_cv_is_not_fabricated():
+    # Regression test: once the judge quotes verbatim CV prose (as required by the
+    # fixed prompt), a true fact must not be flagged fabricated.
+    raw_cv = (
+        "EDUCATION\n"
+        "B.Sc. in Artificial Intelligence, TU Delft, 2019\n"
+        "B.Sc. in Artificial Intelligence, Carnegie Mellon University, 2018\n"
+    )
+    assessment = _make_assessment(["B.Sc. in Artificial Intelligence, Carnegie Mellon University, 2018"])
+    flags = verify_evidence_chain(assessment, raw_cv)
+    assert flags[0].status != "fabricated"
+
+
+def test_structured_profile_style_quote_is_flagged_even_when_true():
+    # Documents the failure mode this project hit: quoting the structured profile's
+    # field format ("key": value) instead of raw CV prose scores low similarity and
+    # gets flagged fabricated even though the underlying fact is true and on the CV.
+    # This is why the judge prompt must forbid quoting the structured profile.
+    raw_cv = (
+        "EDUCATION\n"
+        "B.Sc. in Artificial Intelligence, TU Delft, 2019\n"
+    )
+    assessment = _make_assessment(
+        ['"degree": "B.Sc. in Artificial Intelligence", "institution": "TU Delft", "year": 2019']
+    )
+    flags = verify_evidence_chain(assessment, raw_cv)
+    assert flags[0].status == "fabricated"

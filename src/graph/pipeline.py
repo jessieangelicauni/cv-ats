@@ -58,7 +58,7 @@ def run_pipeline(
 
     cv_profiles, eliminated = _filter_by_required_skills(cv_profiles, jd_structured)
 
-    assessments = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured)
+    assessments = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured, cv_raws)
 
     # Keep only the top N candidates by raw Phase 3 score for Phase 4.
     # Prevents context window overflow when candidate pools are large (e.g. 200 CVs).

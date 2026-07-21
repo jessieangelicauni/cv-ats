@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SMALL_MODEL = os.getenv("SMALL_MODEL", "qwen2.5:7b")
-LARGE_MODEL = os.getenv("LARGE_MODEL", "llama3.3:70b")
+LARGE_MODEL = os.getenv("LARGE_MODEL", "qwen3:14b")
 
 EXTRACTION_TEMPERATURE = float(os.getenv("EXTRACTION_TEMPERATURE", "0.0"))
 JUDGE_TEMPERATURE = float(os.getenv("JUDGE_TEMPERATURE", "0.1"))

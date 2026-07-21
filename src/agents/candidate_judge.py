@@ -14,6 +14,7 @@ class CandidateJudgeAgent:
         self,
         profile: CandidateProfile,
         jd: JDRequirements,
+        raw_cv_text: str,
         skill_matches: list | None = None,
     ) -> CandidateAssessment:
         return self._llm.invoke(
@@ -21,6 +22,7 @@ class CandidateJudgeAgent:
              HumanMessage(content=prompts.human(
                  jd.model_dump_json(indent=2),
                  profile.model_dump_json(indent=2),
+                 raw_cv_text,
                  skill_matches=skill_matches,
              ))]
         )
