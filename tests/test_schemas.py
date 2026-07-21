@@ -1,8 +1,7 @@
 from src.models.schemas import (
-    JDRequirements, SkillRequirement, EducationRequirement,
-    CandidateProfile, CandidateBasicInfo, SkillEntry, SkillMatchResult,
-    WorkEntry, EducationEntry, LanguageEntry,
-    CandidateAssessment, EvidenceItem, HallucinationFlag,
+    JDRequirements, EducationRequirement,
+    SkillEntry, SkillMatchResult,
+    EvidenceItem,
     FinalRanking, RankedCandidate,
 )
 

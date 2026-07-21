@@ -1,5 +1,5 @@
 from src.evaluation.calibration_metrics import calibration_report
-from src.models.schemas import CandidateAssessment, EvidenceItem, FinalRanking, RankedCandidate
+from src.models.schemas import CandidateAssessment, FinalRanking, RankedCandidate
 
 def _make_assessments() -> list[CandidateAssessment]:
     def make(cid, score):
