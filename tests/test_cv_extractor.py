@@ -1,9 +1,11 @@
+from datetime import date
 from unittest.mock import MagicMock, patch
 from src.agents.cv_extractor import CVExtractorAgent
 from src.models.schemas import (
     CandidateProfile, CandidateBasicInfo, SkillEntry,
     WorkEntry,
 )
+from src.prompts.cv_extractor import human_2a
 
 SAMPLE_CV = """
 Ahmad Faris Bin Razak
@@ -73,3 +75,12 @@ def test_cv_extractor_preserves_raw_mentions():
 
     postgres_skill = next(s for s in result.skills if s.raw_mention == "postgres")
     assert postgres_skill.raw_mention == "postgres"
+
+
+def test_human_2a_includes_reference_date():
+    fixed_date = date(2026, 1, 15)
+    with patch("src.prompts.cv_extractor.date") as mock_date:
+        mock_date.today.return_value = fixed_date
+        result = human_2a("CV text here", "cv_001")
+
+    assert "REFERENCE DATE: 2026-01-15" in result
