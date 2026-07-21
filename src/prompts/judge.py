@@ -16,7 +16,12 @@ it is not a quotable source. evidence_quote must be ONE contiguous excerpt (a si
 line or a short run of adjacent lines) copied as-is — never join separate bullets, \
 lines, or sections together with "..." or any other connector. If you need evidence \
 from two unrelated parts of the CV, add a separate evidence_chain item for each one \
-instead of merging them into a single quote. If no supporting sentence exists in the \
+instead of merging them into a single quote. \
+WRONG: evidence_quote: "Led backend migration using Python; Reduced latency by 40%" — \
+this splices two bullets from different roles into one quote with "; ". \
+RIGHT: two separate evidence_chain items instead — one with evidence_quote "Led \
+backend migration using Python", another with evidence_quote "Reduced latency by 40%". \
+If no supporting sentence exists in the \
 raw CV text, set evidence_quote to "NOT FOUND IN CV" and lower the dimension_score \
 accordingly. Never state a fact not traceable to the raw CV text.
 Return a valid JSON object matching the required schema exactly."""
