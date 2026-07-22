@@ -12,6 +12,13 @@ def test_retry_human_lists_dimension_claim_and_quote():
     assert "Technical Skills Fit" in prompt
     assert "Strong Python skills." in prompt
     assert "Python, Git, Docker" in prompt
+
+
+def test_retry_human_forbids_not_found_in_cv_escape():
+    prompt = retry_human([
+        ("Technical Skills Fit", "Strong Python skills.", "Python, Git, Docker"),
+    ])
+    assert "Do not respond with" in prompt
     assert "NOT FOUND IN CV" in prompt
 
 

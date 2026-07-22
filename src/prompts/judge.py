@@ -86,9 +86,12 @@ def retry_human(failed_items: list[tuple[str, str, str]]) -> str:
         )
     lines.append(
         "\nRegenerate the full assessment. For each flagged dimension "
-        "above, either replace evidence_quote with an exact excerpt "
-        "copied from the RAW CV TEXT, or set it to \"NOT FOUND IN CV\" "
-        "and lower that dimension_score accordingly. Leave every other "
-        "dimension exactly as it was."
+        "above, search the RAW CV TEXT again and replace evidence_quote "
+        "with a genuine exact excerpt that supports the claim. Do not "
+        "respond with \"NOT FOUND IN CV\" for these flagged items — if "
+        "the original claim truly isn't supported, replace the claim "
+        "itself with a different, verifiable one for that dimension, "
+        "backed by a real excerpt from the RAW CV TEXT. Leave every "
+        "other dimension exactly as it was."
     )
     return "\n".join(lines)
