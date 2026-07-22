@@ -6,7 +6,7 @@ from src.models.schemas import (
     CandidateAssessment, CandidateProfile, HallucinationFlag,
 )
 from src.graph.state import ATSState
-from src.evaluation.hallucination_checker import hallucination_rate
+from src.evaluation.hallucination_checker import hallucination_rate, severity_weighted_hallucination_rate
 
 
 def _render_candidate_block(
@@ -109,6 +109,7 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
     countable = [f for f in flags if f.status != "acknowledged_gap"]
     h_report = {
         "overall_fabrication_rate": round(h_rate, 4),
+        "severity_weighted_fabrication_rate": round(severity_weighted_hallucination_rate(assessments, flags), 4),
         "total_claims": len(countable),
         "fabricated_count": len(fabricated),
         "fabricated_claims": [f.model_dump() for f in fabricated],

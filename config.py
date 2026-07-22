@@ -13,6 +13,7 @@ JUDGE_TEMPERATURE = float(os.getenv("JUDGE_TEMPERATURE", "0.1"))
 
 SKILL_MATCH_THRESHOLD = float(os.getenv("SKILL_MATCH_THRESHOLD", "0.80"))
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+NLI_MODEL = os.getenv("NLI_MODEL", "cross-encoder/nli-deberta-v3-small")
 TOP_N_FOR_CALIBRATION = int(os.getenv("TOP_N_FOR_CALIBRATION", "20"))
 
 BASE_DIR = Path(__file__).parent

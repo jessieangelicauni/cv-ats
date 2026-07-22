@@ -1,12 +1,11 @@
 from __future__ import annotations
 import re
-from sentence_transformers import util
 from src.models.schemas import CandidateAssessment, HallucinationFlag
-from src.utils.embedder import get_embedder
+from src.utils.embedder import get_nli_model
 
-SIMILARITY_THRESHOLD = 0.85
+ENTAILMENT_THRESHOLD = 0.5
 MAX_WINDOW_LINES = 4
-SPLICE_SEPARATOR_RE = re.compile(r"\s*(?:\.\.\.|…|; )\s*")
+SPLICE_SEPARATOR_RE = re.compile(r"\s*(?:\.\.\.|…|; |\n+)\s*")
 STRUCTURED_QUOTE_RE = re.compile(r'"\s*:\s*(true|false|null|-?\d|")', re.IGNORECASE)
 
 
@@ -23,27 +22,25 @@ def _line_windows(full_text: str) -> list[str]:
     return windows
 
 
-_window_emb_cache: dict[str, tuple[list[str], object]] = {}
+_window_cache: dict[str, list[str]] = {}
 
 
-def _windows_and_embeddings(full_text: str) -> tuple[list[str], object]:
-    cached = _window_emb_cache.get(full_text)
-    if cached is not None:
-        return cached
-    windows = _line_windows(full_text)
-    emb_windows = get_embedder().encode(windows, convert_to_tensor=True) if windows else None
-    _window_emb_cache[full_text] = (windows, emb_windows)
-    return windows, emb_windows
+def _cached_line_windows(full_text: str) -> list[str]:
+    windows = _window_cache.get(full_text)
+    if windows is None:
+        windows = _line_windows(full_text)
+        _window_cache[full_text] = windows
+    return windows
 
 
-def _max_window_similarity(quote: str, full_text: str) -> float:
-    windows, emb_windows = _windows_and_embeddings(full_text)
+def _max_window_entailment(quote: str, full_text: str) -> float:
+    windows = _cached_line_windows(full_text)
     if not windows:
         return 0.0
-    embedder = get_embedder()
-    emb_quote = embedder.encode(quote, convert_to_tensor=True)
-    scores = util.cos_sim(emb_quote, emb_windows)[0]
-    return float(scores.max())
+    scores = get_nli_model().predict(
+        [(window, quote) for window in windows], apply_softmax=True, convert_to_numpy=True
+    )
+    return float(scores[:, 1].max())
 
 
 def _verify_single_span(quote: str, raw_cv_text: str, normalized_raw: str) -> bool:
@@ -51,7 +48,7 @@ def _verify_single_span(quote: str, raw_cv_text: str, normalized_raw: str) -> bo
         return True
     if STRUCTURED_QUOTE_RE.search(quote):
         return False
-    return _max_window_similarity(quote, raw_cv_text) > SIMILARITY_THRESHOLD
+    return _max_window_entailment(quote, raw_cv_text) > ENTAILMENT_THRESHOLD
 
 
 def _all_parts_verified(quote: str, raw_cv_text: str, normalized_raw: str) -> bool:
@@ -74,10 +71,10 @@ def verify_evidence_chain(
 
         if quote == "NOT FOUND IN CV":
             status = "acknowledged_gap"
-        elif SPLICE_SEPARATOR_RE.search(quote):
-            status = "inferred" if _all_parts_verified(quote, raw_cv_text, normalized_raw) else "fabricated"
         elif _verify_single_span(quote, raw_cv_text, normalized_raw):
             status = "inferred"
+        elif SPLICE_SEPARATOR_RE.search(quote):
+            status = "inferred" if _all_parts_verified(quote, raw_cv_text, normalized_raw) else "fabricated"
         else:
             status = "fabricated"
 
@@ -96,3 +93,27 @@ def hallucination_rate(flags: list[HallucinationFlag]) -> float:
         return 0.0
     fabricated = sum(1 for f in countable if f.status == "fabricated")
     return fabricated / len(countable)
+
+
+def severity_weighted_hallucination_rate(
+    assessments: list[CandidateAssessment],
+    flags: list[HallucinationFlag],
+) -> float:
+    total_weight = 0.0
+    fabricated_weight = 0.0
+    for assessment in assessments:
+        claim_status = {
+            f.claim: f.status
+            for f in flags
+            if f.candidate_id == assessment.candidate_id
+        }
+        for item in assessment.evidence_chain:
+            status = claim_status.get(item.assessment)
+            if status is None or status == "acknowledged_gap":
+                continue
+            total_weight += item.dimension_score
+            if status == "fabricated":
+                fabricated_weight += item.dimension_score
+    if total_weight == 0:
+        return 0.0
+    return fabricated_weight / total_weight
