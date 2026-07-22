@@ -15,7 +15,15 @@ class CVExtractorAgent:
     def run(self, cv_raw: dict) -> CandidateProfile:
         cv_text = cv_raw["raw_text"]
         candidate_id = cv_raw["candidate_id"]
-        cache_key = ExtractionCache.make_key(cv_text + candidate_id, prefix="cv")
+        # Mixing the system prompt into the key ensures a prompt edit (e.g. a fix to
+        # how a field is extracted) invalidates old cache entries automatically —
+        # otherwise a stale pre-fix extraction keeps being served forever, silently
+        # masking the fix. See the "Daniel Adif Nugroho Resume" full_name=null
+        # incident: the candidate_id-leak fix in human_2a landed, but the cache
+        # entry written before the fix kept being replayed.
+        cache_key = ExtractionCache.make_key(
+            cv_text + candidate_id + prompts.SYSTEM_2A, prefix="cv"
+        )
 
         if self._cache:
             cached = self._cache.get(cache_key)

@@ -117,6 +117,35 @@ def test_agent_run_overrides_candidate_id_on_cache_hit_too():
     assert result.candidate_id == "Daniel Adif Nugroho Resume"
 
 
+def test_cache_key_changes_when_system_prompt_changes():
+    # Regression test for the Daniel Adif Nugroho Resume.pdf full_name=null
+    # incident: a cache key built only from cv_text + candidate_id keeps serving a
+    # stale extraction forever, even after the prompt bug that caused it is fixed
+    # in code (see test_human_2a_does_not_leak_candidate_id_hint). Mixing the
+    # system prompt into the key makes a prompt edit auto-invalidate old entries.
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+    cv_raw = {
+        "raw_text": SAMPLE_CV,
+        "candidate_id": "cv_001",
+        "source_file": "cv_001.pdf",
+    }
+
+    with patch("src.agents.cv_extractor.get_llm") as mock_get_llm:
+        mock_get_llm.return_value.invoke.return_value = _make_mock_profile()
+        agent = CVExtractorAgent(cache=mock_cache)
+        agent.run(cv_raw)
+        key_before = mock_cache.get.call_args[0][0]
+
+        with patch("src.prompts.cv_extractor.SYSTEM_2A", "a different prompt"):
+            mock_cache.reset_mock()
+            mock_cache.get.return_value = None
+            agent.run(cv_raw)
+            key_after = mock_cache.get.call_args[0][0]
+
+    assert key_before != key_after
+
+
 def test_human_2a_includes_reference_date():
     fixed_date = date(2026, 1, 15)
     with patch("src.prompts.cv_extractor.date") as mock_date:

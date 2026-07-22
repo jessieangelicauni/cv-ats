@@ -13,7 +13,10 @@ class JDParserAgent:
         self._cache = cache
 
     def run(self, jd_text: str) -> JDRequirements:
-        cache_key = ExtractionCache.make_key(jd_text, prefix="jd")
+        # See cv_extractor.py for why the prompt is mixed into the key: it makes
+        # a prompt edit auto-invalidate stale cache entries instead of silently
+        # replaying pre-fix output.
+        cache_key = ExtractionCache.make_key(jd_text + prompts.SYSTEM, prefix="jd")
         jd_hash = cache_key.split(":", 1)[1]
 
         if self._cache:
