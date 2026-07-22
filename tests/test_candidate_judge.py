@@ -27,7 +27,8 @@ def _make_mock_assessment(candidate_id: str):
     )
 
 
-def test_agent_run_overrides_llm_candidate_id_with_provided_id():
+@patch("src.agents.candidate_judge.verify_evidence_chain", return_value=[])
+def test_agent_run_overrides_llm_candidate_id_with_provided_id(mock_verify):
     profile = _make_profile("Daniel Adif Nugroho Resume")
     mock_assessment = _make_mock_assessment("Daniel Adif Nugroho")
     mock_llm = MagicMock()
@@ -38,6 +39,7 @@ def test_agent_run_overrides_llm_candidate_id_with_provided_id():
         result = agent.run(profile, _make_jd(), raw_cv_text="Python, SQL")
 
     assert result.candidate_id == "Daniel Adif Nugroho Resume"
+    assert mock_llm.invoke.call_count == 1
 
 
 def _make_fabricated_flag(assessment):

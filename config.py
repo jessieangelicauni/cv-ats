@@ -10,7 +10,7 @@ LARGE_MODEL = os.getenv("LARGE_MODEL", "qwen3:14b")
 
 EXTRACTION_TEMPERATURE = float(os.getenv("EXTRACTION_TEMPERATURE", "0.0"))
 JUDGE_TEMPERATURE = float(os.getenv("JUDGE_TEMPERATURE", "0.1"))
-JUDGE_MAX_RETRIES = int(os.getenv("JUDGE_MAX_RETRIES", "2"))
+JUDGE_MAX_RETRIES = max(0, int(os.getenv("JUDGE_MAX_RETRIES", "2")))
 
 SKILL_MATCH_THRESHOLD = float(os.getenv("SKILL_MATCH_THRESHOLD", "0.80"))
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
