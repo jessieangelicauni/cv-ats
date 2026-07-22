@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from src.utils.pdf_extractor import extract_pdf
+from src.utils.pdf_extractor import extract_pdf, raw_text_by_candidate_id
 from src.graph.pipeline import run_pipeline
 from src.output.report_generator import generate_report
 from src.evaluation.hallucination_checker import verify_evidence_chain, hallucination_rate
@@ -107,7 +107,7 @@ def main(
         table.add_row(
             str(rc.rank),
             rc.candidate_id,
-            p.basic_info.full_name or "N/A" if p else "N/A",
+            (p.basic_info.full_name if p else None) or "N/A",
             str(rc.calibrated_score),
             f"{rc.delta_from_raw:+.1f}",
             a.confidence if a else "N/A",
@@ -115,7 +115,7 @@ def main(
         )
     console.print(table)
 
-    cv_text_map = {c["candidate_id"]: c["raw_text"] for c in cv_raws}
+    cv_text_map = raw_text_by_candidate_id(cv_raws)
 
     if eval:
         console.print("[blue]Running evaluation suite...[/blue]")

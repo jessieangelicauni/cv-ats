@@ -7,9 +7,6 @@ def _req(skill: str) -> SkillRequirement:
 
 
 def test_matches_skill_within_comma_separated_blob():
-    # Extraction often bundles an entire resume skills section into one
-    # SkillEntry instead of one entry per skill (see cv:7e290569883c795bd
-    # in .cache/extractions.db for a real example).
     blob = SkillEntry(
         raw_mention=(
             "Python, Julia, LangChain, OpenAI API, Polars, Weights & Biases, "

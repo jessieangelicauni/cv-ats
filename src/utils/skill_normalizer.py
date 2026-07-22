@@ -7,6 +7,7 @@ import config
 
 
 _cv_emb_cache: dict[tuple[str, ...], object] = {}
+_jd_emb_cache: dict[tuple[str, ...], object] = {}
 
 _SKILL_SPLIT_RE = re.compile(r"[,;/|]|\band\b")
 
@@ -25,6 +26,9 @@ def compute_skill_matches(
     jd_skills: list[SkillRequirement],
     profile_skills: list[SkillEntry],
 ) -> list[SkillMatchResult]:
+    if not jd_skills:
+        return []
+
     candidate_names = _split_skill_mentions(profile_skills)
 
     if not candidate_names:
@@ -34,15 +38,22 @@ def compute_skill_matches(
         ]
 
     embedder = get_embedder()
-    cache_key = tuple(candidate_names)
-    if cache_key not in _cv_emb_cache:
-        _cv_emb_cache[cache_key] = embedder.encode(candidate_names, convert_to_tensor=True)
-    emb_cv = _cv_emb_cache[cache_key]
+    cv_key = tuple(candidate_names)
+    if cv_key not in _cv_emb_cache:
+        _cv_emb_cache[cv_key] = embedder.encode(candidate_names, convert_to_tensor=True)
+    emb_cv = _cv_emb_cache[cv_key]
+
+    jd_names = [s.skill for s in jd_skills]
+    jd_key = tuple(jd_names)
+    if jd_key not in _jd_emb_cache:
+        _jd_emb_cache[jd_key] = embedder.encode(jd_names, convert_to_tensor=True)
+    emb_jd = _jd_emb_cache[jd_key]
+
+    scores_matrix = util.cos_sim(emb_jd, emb_cv)
 
     results: list[SkillMatchResult] = []
-    for s in jd_skills:
-        emb_jd = embedder.encode(s.skill, convert_to_tensor=True)
-        scores = util.cos_sim(emb_jd, emb_cv)[0]
+    for i, s in enumerate(jd_skills):
+        scores = scores_matrix[i]
         best_idx = int(scores.argmax())
         best_score = float(scores.max())
         best_match = candidate_names[best_idx] if best_score >= config.SKILL_MATCH_THRESHOLD else None

@@ -1,19 +1,20 @@
 from unittest.mock import patch
 from src.evaluation.hallucination_checker import verify_evidence_chain, hallucination_rate
 from src.models.schemas import CandidateAssessment, EvidenceItem, HallucinationFlag
+from tests.conftest import make_candidate_assessment
 
 RAW_CV = "Led backend migration using Python and gRPC. Maintained postgres cluster serving 10M users."
 
 
 def _make_assessment(quotes: list[str]) -> CandidateAssessment:
-    return CandidateAssessment(
-        candidate_id="cv_001", raw_score=80.0, confidence="high",
+    return make_candidate_assessment(
+        "cv_001", 80.0,
         evidence_chain=[
             EvidenceItem(dimension=f"dim_{i}", assessment="Good.",
                          evidence_quote=q, dimension_score=8.0)
             for i, q in enumerate(quotes)
         ],
-        key_strengths=[], key_gaps=[], seniority_alignment="aligned",
+        key_strengths=[],
     )
 
 
@@ -44,13 +45,10 @@ def test_hallucination_rate_calculated_correctly():
         HallucinationFlag(candidate_id="cv_001", claim="c", status="inferred", source_quote="q"),
         HallucinationFlag(candidate_id="cv_001", claim="c", status="acknowledged_gap", source_quote=None),
     ]
-    # fabricated=1 / (inferred=2 + fabricated=1) = 1/3
     assert abs(hallucination_rate(flags) - 1/3) < 1e-6
 
 
 def test_verbatim_quote_from_raw_cv_is_not_fabricated():
-    # Regression test: once the judge quotes verbatim CV prose (as required by the
-    # fixed prompt), a true fact must not be flagged fabricated.
     raw_cv = (
         "EDUCATION\n"
         "B.Sc. in Artificial Intelligence, TU Delft, 2019\n"
@@ -62,10 +60,6 @@ def test_verbatim_quote_from_raw_cv_is_not_fabricated():
 
 
 def test_structured_profile_style_quote_is_flagged_even_when_true():
-    # Documents the failure mode this project hit: quoting the structured profile's
-    # field format ("key": value) instead of raw CV prose scores low similarity and
-    # gets flagged fabricated even though the underlying fact is true and on the CV.
-    # This is why the judge prompt must forbid quoting the structured profile.
     raw_cv = (
         "EDUCATION\n"
         "B.Sc. in Artificial Intelligence, TU Delft, 2019\n"
@@ -92,11 +86,6 @@ MULTI_JOB_CV = (
 
 
 def test_spliced_quote_from_two_nonadjacent_real_bullets_is_not_fabricated():
-    # Regression test for the cv_00014.pdf case: the judge joined two real bullets
-    # from two different (non-adjacent) job entries with "; ". Neither the verbatim
-    # check nor the whole-quote window-similarity check can verify the joined string
-    # (the halves are 5 lines apart, past MAX_WINDOW_LINES), but each half is
-    # individually a true, verbatim CV fact and must not be flagged fabricated.
     quote = (
         "Designed and implemented infrastructure as code using Buildah, managing 100+ servers; "
         "Built CI/CD pipelines using Helm, reducing deployment time from 29s to 491ms"
@@ -107,8 +96,6 @@ def test_spliced_quote_from_two_nonadjacent_real_bullets_is_not_fabricated():
 
 
 def test_spliced_quote_with_one_fabricated_half_is_still_fabricated():
-    # The "; " fallback must not become a loophole: if either half doesn't verify
-    # against the CV, the whole quote must still be flagged fabricated.
     quote = (
         "Designed and implemented infrastructure as code using Buildah, managing 100+ servers; "
         "Personally negotiated a merger between two Fortune 500 companies"
@@ -119,16 +106,6 @@ def test_spliced_quote_with_one_fabricated_half_is_still_fabricated():
 
 
 def test_ellipsis_spliced_quote_from_two_nonadjacent_real_bullets_is_not_fabricated():
-    # Regression test for the Daniel Adif Nugroho Resume.pdf case: the judge joined
-    # two real bullets from two different job entries with "..." instead of "; ".
-    # The "; " splice fallback doesn't recognize this separator, so both halves
-    # verifying independently was never checked and the whole quote fell through
-    # to fabricated even though each half is a true, verbatim CV fact.
-    #
-    # _max_window_similarity is forced to 0.0 so the whole-quote semantic-similarity
-    # fallback can't rescue this on its own (it otherwise scores this short fixture
-    # CV's text high enough to mask whether the splice-detection path even runs) —
-    # this isolates the "..."-splice-detection logic the fix must add.
     quote = (
         "Designed and implemented infrastructure as code using Buildah, managing 100+ servers... "
         "Built CI/CD pipelines using Helm, reducing deployment time from 29s to 491ms"

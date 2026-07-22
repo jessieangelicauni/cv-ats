@@ -6,8 +6,9 @@ from src.graph.state import ATSState
 from src.models.schemas import (
     FinalRanking, RankedCandidate, CandidateAssessment,
     EvidenceItem, CandidateProfile, CandidateBasicInfo,
-    JDRequirements, EducationRequirement, HallucinationFlag,
+    HallucinationFlag,
 )
+from tests.conftest import make_jd_requirements
 
 
 def _make_state() -> ATSState:
@@ -33,13 +34,8 @@ def _make_state() -> ATSState:
         pool_summary="Strong pool.", calibration_rationale="Spread increased.",
         borderline_pairs=[],
     )
-    jd = JDRequirements(
-        role_title="Senior Backend Engineer", seniority_level="senior",
-        required_skills=[], preferred_skills=[], min_years_experience=5,
-        education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
-        domain_expertise=[], leadership_expected=True,
-        soft_skills=[], industry_context="IT", raw_jd_hash="abc",
-    )
+    jd = make_jd_requirements(role_title="Senior Backend Engineer", seniority_level="senior",
+                               min_years_experience=5, leadership_expected=True)
     return ATSState(
         jd_raw="Senior Backend Engineer job description",
         jd_structured=jd,
@@ -52,7 +48,6 @@ def _make_state() -> ATSState:
         hallucination_flags=[HallucinationFlag(candidate_id="cv_001",
                                                claim="Strong Python.", status="inferred",
                                                source_quote="Python dev")],
-        use_cache=False,
     )
 
 
@@ -112,13 +107,8 @@ def test_report_md_contains_eliminated_section_when_candidates_filtered():
                            comparative_notes="Best.")],
         pool_summary="One candidate.", calibration_rationale="N/A", borderline_pairs=[],
     )
-    jd = JDRequirements(
-        role_title="Engineer", seniority_level="senior",
-        required_skills=[], preferred_skills=[], min_years_experience=5,
-        education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
-        domain_expertise=[], leadership_expected=True,
-        soft_skills=[], industry_context="IT", raw_jd_hash="abc",
-    )
+    jd = make_jd_requirements(role_title="Engineer", seniority_level="senior",
+                               min_years_experience=5, leadership_expected=True)
     state = ATSState(
         jd_raw="Engineer JD",
         jd_structured=jd,
@@ -128,7 +118,6 @@ def test_report_md_contains_eliminated_section_when_candidates_filtered():
         final_ranking=ranking,
         run_id="test_run",
         eliminated_candidates=["cv_002", "cv_003"],
-        use_cache=False,
     )
     with tempfile.TemporaryDirectory() as tmp:
         out_dir = Path(tmp)

@@ -1,23 +1,15 @@
 from src.models.schemas import (
-    JDRequirements, EducationRequirement,
     SkillEntry, SkillMatchResult,
     EvidenceItem,
     FinalRanking, RankedCandidate,
 )
+from tests.conftest import make_jd_requirements
 
 
 def test_jd_requirements_rejects_invalid_seniority():
     import pytest
     with pytest.raises(Exception):
-        JDRequirements(
-            role_title="Dev",
-            seniority_level="wizard",
-            required_skills=[], preferred_skills=[],
-            min_years_experience=3,
-            education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
-            domain_expertise=[], leadership_expected=False,
-            soft_skills=[], industry_context="IT", raw_jd_hash="abc",
-        )
+        make_jd_requirements(role_title="Dev", seniority_level="wizard")
 
 
 def test_skill_entry_has_raw_mention():

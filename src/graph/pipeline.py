@@ -60,8 +60,6 @@ def run_pipeline(
 
     assessments = _run_phase(3, phase3_candidate_judge, cv_profiles, jd_structured, cv_raws)
 
-    # Keep only the top N candidates by raw Phase 3 score for Phase 4.
-    # Prevents context window overflow when candidate pools are large (e.g. 200 CVs).
     shortlist = sorted(assessments, key=lambda a: a.raw_score, reverse=True)[
         : config.TOP_N_FOR_CALIBRATION
     ]
@@ -78,7 +76,5 @@ def run_pipeline(
         final_ranking=final_ranking,
         run_id=run_id,
         trace_log=trace_log,
-        use_cache=use_cache,
         eliminated_candidates=eliminated,
-        shortlisted_for_calibration=[a.candidate_id for a in shortlist],
     )

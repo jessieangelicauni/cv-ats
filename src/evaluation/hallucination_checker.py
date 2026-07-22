@@ -7,12 +7,6 @@ from src.utils.embedder import get_embedder
 SIMILARITY_THRESHOLD = 0.85
 MAX_WINDOW_LINES = 4
 SPLICE_SEPARATOR_RE = re.compile(r"\s*(?:\.\.\.|…|; )\s*")
-# Matches a JSON key:value fragment (e.g. `"degree": "B.Sc..."` or a truncated
-# `..indicators": true`). Such a quote was copied from the structured candidate
-# profile, not the raw CV prose — the EVIDENCE_RULE forbids this regardless of
-# whether the underlying fact is true, so it must never be rescued by the
-# semantic-similarity fallback below (which exists only to tolerate PDF line-wrap
-# reflow, not to bless format-violating quotes).
 STRUCTURED_QUOTE_RE = re.compile(r'"\s*:\s*(true|false|null|-?\d|")', re.IGNORECASE)
 
 
@@ -21,10 +15,6 @@ def _normalize_for_containment(text: str) -> str:
 
 
 def _line_windows(full_text: str) -> list[str]:
-    # PDF-extracted CVs often split one logical entry (e.g. "role, company, dates")
-    # across several lines purely due to column layout. Comparing the quote against
-    # single lines alone misses these; sliding windows of consecutive lines let a
-    # quote that spans 2-4 original lines still find its match.
     lines = [line.strip() for line in full_text.split("\n") if line.strip()]
     windows: list[str] = []
     for size in range(1, MAX_WINDOW_LINES + 1):
@@ -33,13 +23,25 @@ def _line_windows(full_text: str) -> list[str]:
     return windows
 
 
-def _max_window_similarity(quote: str, full_text: str) -> float:
+_window_emb_cache: dict[str, tuple[list[str], object]] = {}
+
+
+def _windows_and_embeddings(full_text: str) -> tuple[list[str], object]:
+    cached = _window_emb_cache.get(full_text)
+    if cached is not None:
+        return cached
     windows = _line_windows(full_text)
+    emb_windows = get_embedder().encode(windows, convert_to_tensor=True) if windows else None
+    _window_emb_cache[full_text] = (windows, emb_windows)
+    return windows, emb_windows
+
+
+def _max_window_similarity(quote: str, full_text: str) -> float:
+    windows, emb_windows = _windows_and_embeddings(full_text)
     if not windows:
         return 0.0
     embedder = get_embedder()
     emb_quote = embedder.encode(quote, convert_to_tensor=True)
-    emb_windows = embedder.encode(windows, convert_to_tensor=True)
     scores = util.cos_sim(emb_quote, emb_windows)[0]
     return float(scores.max())
 
@@ -53,11 +55,6 @@ def _verify_single_span(quote: str, raw_cv_text: str, normalized_raw: str) -> bo
 
 
 def _all_parts_verified(quote: str, raw_cv_text: str, normalized_raw: str) -> bool:
-    # The judge is instructed never to splice separate CV bullets into one quote
-    # with "; ", "...", or any other connector, but it does so occasionally. When it
-    # does, each half is often a real, verbatim fact — just not adjacent enough to
-    # pass as one contiguous excerpt. Verify each half independently before giving
-    # up on the quote.
     parts = [p.strip() for p in SPLICE_SEPARATOR_RE.split(quote)]
     return all(
         part and _verify_single_span(part, raw_cv_text, normalized_raw)
@@ -78,12 +75,6 @@ def verify_evidence_chain(
         if quote == "NOT FOUND IN CV":
             status = "acknowledged_gap"
         elif SPLICE_SEPARATOR_RE.search(quote):
-            # A spliced quote is non-contiguous by construction, so it must be
-            # verified part-by-part. Running the whole spliced string through the
-            # single-span fuzzy-similarity check first is unsound: a genuine half
-            # can drag the combined embedding above SIMILARITY_THRESHOLD even when
-            # the other half is fabricated, letting the fabrication slip through
-            # before the part-by-part check ever runs.
             status = "inferred" if _all_parts_verified(quote, raw_cv_text, normalized_raw) else "fabricated"
         elif _verify_single_span(quote, raw_cv_text, normalized_raw):
             status = "inferred"

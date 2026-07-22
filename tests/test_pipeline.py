@@ -1,39 +1,26 @@
 from unittest.mock import patch
 from src.graph.pipeline import run_pipeline
 from src.models.schemas import (
-    JDRequirements, EducationRequirement,
-    CandidateProfile, CandidateBasicInfo,
-    CandidateAssessment, EvidenceItem, FinalRanking, RankedCandidate,
+    JDRequirements, CandidateProfile, CandidateAssessment,
+    EvidenceItem, FinalRanking, RankedCandidate,
 )
+from tests.conftest import make_jd_requirements, make_candidate_profile, make_candidate_assessment
 
 
 def _mock_jd() -> JDRequirements:
-    return JDRequirements(
-        role_title="Engineer", seniority_level="mid",
-        required_skills=[], preferred_skills=[], min_years_experience=3,
-        education=EducationRequirement(degree="BSc", field="CS", is_mandatory=False),
-        domain_expertise=[], leadership_expected=False,
-        soft_skills=[], industry_context="IT", raw_jd_hash="abc",
-    )
+    return make_jd_requirements()
 
 
 def _mock_profile(cid: str) -> CandidateProfile:
-    return CandidateProfile(
-        candidate_id=cid,
-        basic_info=CandidateBasicInfo(full_name=None, email=None, phone=None,
-                                       location=None, linkedin_url=None, current_title=None),
-        skills=[], work_history=[], education=[],
-        certifications=[], languages=[], total_experience_months=36,
-    )
+    return make_candidate_profile(cid)
 
 
 def _mock_assessment(cid: str) -> CandidateAssessment:
-    return CandidateAssessment(
-        candidate_id=cid, raw_score=75.0, confidence="medium",
+    return make_candidate_assessment(
+        cid, 75.0, confidence="medium",
         evidence_chain=[EvidenceItem(dimension="Technical Skills Fit",
                                       assessment="OK", evidence_quote="Python",
                                       dimension_score=7.5)],
-        key_strengths=["Python"], key_gaps=[], seniority_alignment="aligned",
     )
 
 

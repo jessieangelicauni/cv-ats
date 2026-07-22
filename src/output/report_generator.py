@@ -9,14 +9,6 @@ from src.graph.state import ATSState
 from src.evaluation.hallucination_checker import hallucination_rate
 
 
-def _profile_for(cid: str, profiles: list[CandidateProfile]) -> CandidateProfile | None:
-    return next((p for p in profiles if p.candidate_id == cid), None)
-
-
-def _assessment_for(cid: str, assessments: list[CandidateAssessment]) -> CandidateAssessment | None:
-    return next((a for a in assessments if a.candidate_id == cid), None)
-
-
 def _render_candidate_block(
     rank: int,
     rc,
@@ -100,6 +92,8 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
     assessments = state.candidate_assessments
     flags = state.hallucination_flags
     run_id = state.run_id
+    profile_map = {p.candidate_id: p for p in profiles}
+    assessment_map = {a.candidate_id: a for a in assessments}
 
     (output_dir / "ranking.json").write_text(
         ranking.model_dump_json(indent=2), encoding="utf-8"
@@ -112,9 +106,10 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
 
     h_rate = hallucination_rate(flags)
     fabricated = [f for f in flags if f.status == "fabricated"]
+    countable = [f for f in flags if f.status != "acknowledged_gap"]
     h_report = {
         "overall_fabrication_rate": round(h_rate, 4),
-        "total_claims": len([f for f in flags if f.status != "acknowledged_gap"]),
+        "total_claims": len(countable),
         "fabricated_count": len(fabricated),
         "fabricated_claims": [f.model_dump() for f in fabricated],
     }
@@ -135,8 +130,8 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
         "|---|---|---|---|---|---|---|---|",
     ]
     for rc in ranking.ranked_candidates:
-        a = _assessment_for(rc.candidate_id, assessments)
-        p = _profile_for(rc.candidate_id, profiles)
+        a = assessment_map.get(rc.candidate_id)
+        p = profile_map.get(rc.candidate_id)
         name = p.basic_info.full_name if p else "N/A"
         md_lines.append(
             f"| {rc.rank} | {rc.candidate_id} | {name} | {rc.calibrated_score}"
@@ -149,8 +144,8 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
                  "", "---", "", "## Candidate Dossiers", ""]
 
     for rc in ranking.ranked_candidates:
-        profile = _profile_for(rc.candidate_id, profiles)
-        assessment = _assessment_for(rc.candidate_id, assessments)
+        profile = profile_map.get(rc.candidate_id)
+        assessment = assessment_map.get(rc.candidate_id)
         if profile and assessment:
             md_lines.append(
                 _render_candidate_block(rc.rank, rc, profile, assessment, flags)
@@ -176,8 +171,7 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
 
     md_lines += [
         "", "---", "", "## Hallucination Summary",
-        f"Overall fabrication rate: {h_rate:.1%} ({len(fabricated)} / "
-        f"{len([f for f in flags if f.status != 'acknowledged_gap'])} claims)",
+        f"Overall fabrication rate: {h_rate:.1%} ({len(fabricated)} / {len(countable)} claims)",
     ]
     if fabricated:
         md_lines += ["", "### Flagged Claims"]

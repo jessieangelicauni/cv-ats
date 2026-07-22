@@ -1,15 +1,12 @@
 from __future__ import annotations
-import fitz  # PyMuPDF
+import fitz
 import pdfplumber
 
 
 def quality_check(text: str) -> bool:
-    # Check minimum length and word count
-    # Note: allow whitespace (including newlines) but not control characters
     has_min_length = len(text) >= 200
     has_min_words = len(text.split()) >= 50
 
-    # Allow printable chars + common whitespace (newlines, tabs, spaces)
     no_control_chars = all(c.isprintable() or c in '\n\r\t ' for c in text)
 
     return has_min_length and has_min_words and no_control_chars
@@ -36,3 +33,7 @@ def extract_pdf(pdf_path: str) -> dict:
 
     status = "ok" if quality_check(text) else "low_confidence"
     return {"raw_text": text, "extraction_status": status, "source_file": pdf_path}
+
+
+def raw_text_by_candidate_id(cv_raws: list[dict]) -> dict[str, str]:
+    return {c["candidate_id"]: c["raw_text"] for c in cv_raws}

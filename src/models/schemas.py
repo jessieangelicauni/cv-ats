@@ -133,8 +133,6 @@ class FinalRanking(BaseModel):
     borderline_pairs: list[BorderlinePair]
 
 
-# Intermediate LLM output for Phase 4 — uses integer positions instead of candidate IDs
-# to prevent the model from hallucinating ID strings.
 class CalibratedEntry(BaseModel):
     position: int
     calibrated_score: float = Field(ge=0.0, le=100.0)
