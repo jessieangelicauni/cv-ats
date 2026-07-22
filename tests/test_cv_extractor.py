@@ -5,7 +5,7 @@ from src.models.schemas import (
     CandidateProfile, CandidateBasicInfo, SkillEntry,
     WorkEntry,
 )
-from src.prompts.cv_extractor import human_2a
+from src.prompts.cv_extractor import human_2a, SYSTEM_2A
 
 SAMPLE_CV = """
 Ahmad Faris Bin Razak
@@ -145,3 +145,8 @@ def test_human_2a_includes_reference_date():
 def test_human_2a_does_not_leak_candidate_id_hint():
     result = human_2a("CV text here")
     assert "CANDIDATE_ID" not in result
+
+
+def test_system_2a_names_full_name_field_and_where_to_find_it():
+    assert "full_name" in SYSTEM_2A
+    assert "first line" in SYSTEM_2A

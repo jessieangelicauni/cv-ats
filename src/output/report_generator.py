@@ -133,7 +133,7 @@ def generate_report(state: ATSState, output_dir: Path) -> None:
     for rc in ranking.ranked_candidates:
         a = assessment_map.get(rc.candidate_id)
         p = profile_map.get(rc.candidate_id)
-        name = p.basic_info.full_name if p else "N/A"
+        name = (p.basic_info.full_name if p else None) or "N/A"
         md_lines.append(
             f"| {rc.rank} | {rc.candidate_id} | {name} | {rc.calibrated_score}"
             f" | {a.raw_score if a else 'N/A'} | {rc.delta_from_raw:+.1f}"

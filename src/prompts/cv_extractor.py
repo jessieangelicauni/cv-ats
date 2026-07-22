@@ -1,8 +1,9 @@
 from datetime import date
 
 SYSTEM_2A = """Extract structured data from this resume. Rules:
-1. Extract basic personal info (name, email, phone, location, LinkedIn, current title) \
-from the header or contact section. Set fields to null if not present — do not fabricate.
+1. Extract basic_info.full_name (the candidate's full name, usually the first line \
+of the resume), email, phone, location, LinkedIn, and current title from the header \
+or contact section. Set fields to null if not present — do not fabricate.
 2. All achievement strings must be VERBATIM QUOTES from the resume text.
 3. Compute tenure_months from dates given. Treat "Present" or "Current" as ending \
 on the reference date provided below. If dates are missing, set null — never estimate.

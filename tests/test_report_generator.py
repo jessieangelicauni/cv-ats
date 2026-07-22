@@ -69,6 +69,17 @@ def test_report_md_contains_candidate_name():
         assert "Ahmad Faris" in content
 
 
+def test_report_md_shows_na_not_none_when_full_name_missing():
+    state = _make_state()
+    state.cv_profiles[0].basic_info.full_name = None
+    with tempfile.TemporaryDirectory() as tmp:
+        out_dir = Path(tmp)
+        generate_report(state, out_dir)
+        content = (out_dir / "report.md").read_text()
+        assert "| cv_001 | None |" not in content
+        assert "| cv_001 | N/A |" in content
+
+
 def test_report_md_contains_evidence_quote():
     with tempfile.TemporaryDirectory() as tmp:
         out_dir = Path(tmp)
