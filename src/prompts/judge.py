@@ -24,6 +24,10 @@ backend migration using Python", another with evidence_quote "Reduced latency by
 If no supporting sentence exists in the \
 raw CV text, set evidence_quote to "NOT FOUND IN CV" and lower the dimension_score \
 accordingly. Never state a fact not traceable to the raw CV text.
+Do not use your general knowledge about common tools, companies, institutions, or \
+typical resumes for this kind of role. If a skill, employer, school, or metric is not \
+explicitly written in the RAW CV TEXT, do not state it — even if it seems \
+statistically likely for this type of candidate.
 Return a valid JSON object matching the required schema exactly."""
 
 
@@ -68,3 +72,23 @@ def human(
     )
 
     return "".join(parts)
+
+
+def retry_human(failed_items: list[tuple[str, str, str]]) -> str:
+    lines = [
+        "Some evidence_chain items could not be verified as grounded in "
+        "the RAW CV TEXT above and must be fixed:",
+    ]
+    for dimension, assessment, quote in failed_items:
+        lines.append(
+            f'- [{dimension}] evidence_quote "{quote}" was not found in '
+            f'the RAW CV TEXT (for claim: "{assessment}").'
+        )
+    lines.append(
+        "\nRegenerate the full assessment. For each flagged dimension "
+        "above, either replace evidence_quote with an exact excerpt "
+        "copied from the RAW CV TEXT, or set it to \"NOT FOUND IN CV\" "
+        "and lower that dimension_score accordingly. Leave every other "
+        "dimension exactly as it was."
+    )
+    return "\n".join(lines)
